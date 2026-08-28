@@ -26,6 +26,7 @@ spring:
     locations:
       - classpath:db/migration/user
       - classpath:db/migration/auth
+      - classpath:db/migration/social
 
 runtrack:
   auth:
