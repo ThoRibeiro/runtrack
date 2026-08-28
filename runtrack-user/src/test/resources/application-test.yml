@@ -1,0 +1,9 @@
+spring:
+  jpa:
+    # Le schéma vient de Flyway. `validate` fait échouer le test si une entité et sa table
+    # divergent — c'est précisément ce qu'on veut détecter ici.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    locations: classpath:db/migration/user

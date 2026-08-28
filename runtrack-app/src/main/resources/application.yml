@@ -7,6 +7,37 @@ spring:
   profiles:
     default: local
 
+  datasource:
+    url: ${RUNTRACK_DB_URL:jdbc:postgresql://localhost:5432/runtrack}
+    username: ${RUNTRACK_DB_USER:runtrack}
+    password: ${RUNTRACK_DB_PASSWORD:runtrack}
+
+  jpa:
+    # Le schéma appartient à Flyway. `validate` fait échouer le démarrage si une entité
+    # et sa table divergent, plutôt que de laisser Hibernate « réparer » en silence.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    # Un emplacement par module : chaque table appartient à son module, ses migrations
+    # aussi. Les versions sont réparties par centaines pour éviter les collisions.
+    locations:
+      - classpath:db/migration/user
+      - classpath:db/migration/auth
+
+runtrack:
+  auth:
+    jwt:
+      # Chemins, jamais de clé en dur. Sans eux, une paire éphémère est tirée au démarrage
+      # et les jetons ne survivent pas à un redémarrage : une configuration incomplète se
+      # voit tout de suite au lieu de passer inaperçue.
+      private-key-location: ${RUNTRACK_JWT_PRIVATE_KEY:}
+      public-key-location: ${RUNTRACK_JWT_PUBLIC_KEY:}
+      access-token-lifetime: 15m
+      issuer: runtrack
+
 server:
   port: 8080
 

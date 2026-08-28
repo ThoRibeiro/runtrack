@@ -47,7 +47,7 @@ class AuthenticationTest {
 
         authentication = new Authentication(users, new AuthDoubles.Credential(), refreshTokens,
                 singleUseTokens, new AuthDoubles.Hasher(), new AuthDoubles.AccessTokens(), mailer,
-                publisher, clock, AuthDoubles.seededRandom());
+                new SessionRevocation(refreshTokens), publisher, clock, AuthDoubles.seededRandom());
     }
 
     private UserId signUpMarie() {

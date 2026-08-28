@@ -2,8 +2,6 @@ package com.runtrack.user.internal.infra.jpa.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -15,8 +13,9 @@ import java.util.UUID;
  * La table {@code users}. Ne sort jamais de {@code internal/infra} : c'est la couche REST
  * qui expose des DTO, et le domaine qui porte les invariants.
  *
- * <p>Les énumérations sont persistées en chaîne, jamais en ordinal : un {@code ORDINAL}
- * transforme une réorganisation de l'énumération en corruption silencieuse des données.
+ * <p>Les énumérations sont converties en chaîne par le mapper, et stockées comme telles :
+ * jamais en ordinal, qui transformerait une réorganisation de l'énumération en corruption
+ * silencieuse des données.
  */
 @Entity
 @Table(name = "users")
@@ -39,11 +38,9 @@ public class UserEntity {
 
     private String bio;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "account_scope", nullable = false)
     private String accountScope;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private String status;
 

@@ -42,6 +42,7 @@ public class Authentication {
     private final PasswordHasher hasher;
     private final AccessTokenIssuer accessTokens;
     private final AuthMailer mailer;
+    private final SessionRevocation revocation;
     private final ApplicationEventPublisher events;
     private final Clock clock;
     private final RandomGenerator random;
@@ -50,7 +51,8 @@ public class Authentication {
     public Authentication(UserApi users, CredentialsRepository credentials,
             RefreshTokenRepository refreshTokens, SingleUseTokenRepository singleUseTokens,
             PasswordHasher hasher, AccessTokenIssuer accessTokens, AuthMailer mailer,
-            ApplicationEventPublisher events, Clock clock, RandomGenerator random) {
+            SessionRevocation revocation, ApplicationEventPublisher events,
+            Clock clock, RandomGenerator random) {
         this.users = users;
         this.credentials = credentials;
         this.refreshTokens = refreshTokens;
@@ -58,6 +60,7 @@ public class Authentication {
         this.hasher = hasher;
         this.accessTokens = accessTokens;
         this.mailer = mailer;
+        this.revocation = revocation;
         this.events = events;
         this.clock = clock;
         this.random = random;
@@ -104,7 +107,8 @@ public class Authentication {
                         "REFRESH_TOKEN_UNKNOWN", "Session inconnue, reconnexion nécessaire"));
 
         if (presented.wasConsumed()) {
-            refreshTokens.revokeFamily(presented.familyId());
+            // Transaction séparée : le refus qui suit annulerait sinon la révocation.
+            revocation.revokeFamily(presented.familyId());
             throw new ForbiddenException("REFRESH_TOKEN_REUSED",
                     "Ce jeton a déjà servi : la session entière a été révoquée par précaution");
         }
