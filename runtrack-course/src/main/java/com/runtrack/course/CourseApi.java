@@ -1,4 +1,6 @@
 package com.runtrack.course;
+import com.runtrack.shared.access.Viewer;
+import com.runtrack.shared.id.ActivityId;
 
 /**
  * Point d'entrée unique du module {@code course} pour les autres modules.

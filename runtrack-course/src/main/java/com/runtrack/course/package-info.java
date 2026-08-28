@@ -6,3 +6,4 @@
 @org.springframework.modulith.ApplicationModule(displayName = "course",
         allowedDependencies = {"user"})
 package com.runtrack.course;
+import com.runtrack.shared.access.Viewer;
