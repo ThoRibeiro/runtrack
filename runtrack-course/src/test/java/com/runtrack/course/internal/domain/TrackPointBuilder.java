@@ -1,0 +1,80 @@
+package com.runtrack.course.internal.domain;
+
+import com.runtrack.shared.Elevation;
+import com.runtrack.shared.GeoPoint;
+import java.time.Instant;
+import java.util.OptionalInt;
+
+/**
+ * Fixture de points de trace. Aucun test n'a besoin des sept champs à la fois : le
+ * builder porte des valeurs plausibles et chaque test ne nomme que ce qui le concerne,
+ * ce qui rend visible l'unique variable qu'il fait bouger.
+ */
+final class TrackPointBuilder {
+
+    static final Instant START = Instant.parse("2026-08-29T08:00:00Z");
+    static final GeoPoint LILLE = new GeoPoint(50.6292, 3.0573);
+
+    private int sequenceNumber = 1;
+    private GeoPoint position = LILLE;
+    private Elevation elevation = Elevation.ofMeters(20);
+    private Instant recordedAt = START;
+    private double accuracyMeters = 5;
+    private OptionalInt heartRate = OptionalInt.empty();
+    private OptionalInt cadence = OptionalInt.empty();
+
+    static TrackPointBuilder aPoint() {
+        return new TrackPointBuilder();
+    }
+
+    TrackPointBuilder sequence(int value) {
+        this.sequenceNumber = value;
+        return this;
+    }
+
+    TrackPointBuilder at(GeoPoint value) {
+        this.position = value;
+        return this;
+    }
+
+    /** Décale la position vers l'est, ce qui donne un déplacement facile à raisonner. */
+    TrackPointBuilder metersEast(double meters) {
+        double degreesPerMeter = 1 / (111_320d * Math.cos(Math.toRadians(LILLE.latitude())));
+        this.position = new GeoPoint(LILLE.latitude(), LILLE.longitude() + meters * degreesPerMeter);
+        return this;
+    }
+
+    TrackPointBuilder elevation(double meters) {
+        this.elevation = Elevation.ofMeters(meters);
+        return this;
+    }
+
+    TrackPointBuilder secondsAfterStart(long seconds) {
+        this.recordedAt = START.plusSeconds(seconds);
+        return this;
+    }
+
+    TrackPointBuilder recordedAt(Instant value) {
+        this.recordedAt = value;
+        return this;
+    }
+
+    TrackPointBuilder accuracy(double meters) {
+        this.accuracyMeters = meters;
+        return this;
+    }
+
+    TrackPointBuilder heartRate(int beatsPerMinute) {
+        this.heartRate = OptionalInt.of(beatsPerMinute);
+        return this;
+    }
+
+    TrackPointBuilder cadence(int stepsPerMinute) {
+        this.cadence = OptionalInt.of(stepsPerMinute);
+        return this;
+    }
+
+    TrackPoint build() {
+        return new TrackPoint(sequenceNumber, position, elevation, recordedAt, accuracyMeters, heartRate, cadence);
+    }
+}
