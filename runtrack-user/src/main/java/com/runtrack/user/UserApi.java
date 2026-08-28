@@ -1,11 +1,30 @@
 package com.runtrack.user;
 
-/**
- * Point d'entrée unique du module {@code user} pour les autres modules.
- *
- * <p>Les signatures ({@code exists}, {@code summary}, {@code accountVisibility},
- * {@code physiology}) arrivent au lot 3 avec le domaine qui les porte. L'interface est
- * déclarée dès maintenant pour que la frontière existe avant le code.
- */
+import com.runtrack.shared.access.AudienceScope;
+import com.runtrack.shared.id.UserId;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+
+/** Point d'entrée unique du module {@code user} pour les autres modules. */
 public interface UserApi {
+
+    boolean exists(UserId id);
+
+    Optional<UserSummary> summary(UserId id);
+
+    /**
+     * Les résumés de plusieurs profils en un appel.
+     *
+     * <p>Existe pour que le fil d'actualité et les listes d'abonnés n'aient pas à boucler :
+     * un {@code summary} par ligne affichée est exactement le N+1 que le §10 interdit.
+     * Les identifiants inconnus sont simplement absents de la réponse.
+     */
+    Map<UserId, UserSummary> summaries(Collection<UserId> ids);
+
+    /** La portée du compte, à composer avec celle de la course (§5.1). */
+    Optional<AudienceScope> accountScope(UserId id);
+
+    /** Absente tant que l'utilisateur n'a pas renseigné sa masse. */
+    Optional<RunnerMass> massOf(UserId id);
 }

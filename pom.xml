@@ -42,6 +42,8 @@
              would silently diverge from the versions Boot was tested against. -->
         <spring-modulith.version>2.1.1</spring-modulith.version>
         <archunit.version>1.5.0</archunit.version>
+        <!-- Argon2PasswordEncoder needs BouncyCastle, and Boot does not manage it. -->
+        <bouncycastle.version>1.85.2</bouncycastle.version>
 
         <!-- Every plugin version is pinned: an unpinned plugin makes the build
              non-reproducible the day the parent bumps it. -->
@@ -67,6 +69,11 @@
                 <groupId>com.tngtech.archunit</groupId>
                 <artifactId>archunit-junit5</artifactId>
                 <version>${archunit.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
             </dependency>
 
             <dependency>
