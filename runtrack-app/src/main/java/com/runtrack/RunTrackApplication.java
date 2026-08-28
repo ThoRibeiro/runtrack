@@ -8,7 +8,7 @@ import org.springframework.modulith.Modulithic;
  * Point d'entrée de l'application. La carte des modules et les décisions d'architecture
  * sont dans {@code docs/decisions-lot-1.md}.
  */
-@Modulithic(sharedModules = "shared")
+@Modulithic(sharedModules = {"shared", "platform"})
 @SpringBootApplication
 public class RunTrackApplication {
 

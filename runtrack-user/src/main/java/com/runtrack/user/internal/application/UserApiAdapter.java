@@ -2,10 +2,13 @@ package com.runtrack.user.internal.application;
 
 import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.shared.id.UserId;
+import com.runtrack.user.NewUser;
 import com.runtrack.user.RunnerMass;
 import com.runtrack.user.UserApi;
 import com.runtrack.user.UserSummary;
 import com.runtrack.user.internal.application.port.UserRepository;
+import com.runtrack.user.internal.domain.profile.Email;
+import com.runtrack.user.internal.domain.profile.Handle;
 import com.runtrack.user.internal.domain.profile.User;
 import java.util.Collection;
 import java.util.Map;
@@ -20,9 +23,28 @@ import org.springframework.transaction.annotation.Transactional;
 class UserApiAdapter implements UserApi {
 
     private final UserRepository users;
+    private final UserAccounts accounts;
 
-    UserApiAdapter(UserRepository users) {
+    UserApiAdapter(UserRepository users, UserAccounts accounts) {
         this.users = users;
+        this.accounts = accounts;
+    }
+
+    @Override
+    public UserId register(NewUser newUser) {
+        return accounts.register(
+                new Handle(newUser.handle()), new Email(newUser.email()), newUser.displayName());
+    }
+
+    @Override
+    public void confirmEmail(UserId id) {
+        accounts.verifyEmail(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UserId> idOfEmail(String email) {
+        return users.findByEmail(new Email(email)).map(User::id);
     }
 
     @Override
