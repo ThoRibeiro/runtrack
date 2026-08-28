@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.runtrack</groupId>
+    <artifactId>runtrack-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>runtrack-coverage</artifactId>
+  <name>runtrack-coverage</name>
+  <description>Rapport de couverture agrégé et seuil de build — construit en dernier</description>
+
+  <properties>
+    <maven.install.skip>true</maven.install.skip>
+    <maven.deploy.skip>true</maven.deploy.skip>
+  </properties>
+
+  <!-- Every module, so that unpack-dependencies can rebuild the full picture of classes.
+       Order in the reactor guarantees their exec files already exist. -->
+  <dependencies>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-shared</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-user</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-auth</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-social</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-course</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-sharing</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-engagement</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-notification</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-feed</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-app</artifactId></dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- The classes of every module, gathered where jacoco:check knows to look.
+           jacoco:check only ever reads the current project's output directory, so the
+           aggregate threshold cannot be enforced any other way. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>gather-module-classes</id>
+            <phase>process-classes</phase>
+            <goals><goal>unpack-dependencies</goal></goals>
+            <configuration>
+              <includeGroupIds>com.runtrack</includeGroupIds>
+              <outputDirectory>${project.build.outputDirectory}</outputDirectory>
+              <excludes>META-INF/**</excludes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <exclude>com/runtrack/RunTrackApplication.class</exclude>
+            <exclude>**/config/**</exclude>
+            <exclude>**/*Configuration.class</exclude>
+            <exclude>**/*Properties.class</exclude>
+            <exclude>**/internal/infra/rest/dto/**</exclude>
+            <exclude>**/internal/infra/jpa/entity/**</exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <!-- Union of unit + integration across every module. A partial report always
+               looks better than reality, so this is the only number we publish. -->
+          <execution>
+            <id>merge-all-modules</id>
+            <phase>post-integration-test</phase>
+            <goals><goal>merge</goal></goals>
+            <configuration>
+              <fileSets>
+                <fileSet>
+                  <directory>${maven.multiModuleProjectDirectory}</directory>
+                  <includes><include>runtrack-*/target/jacoco-*.exec</include></includes>
+                </fileSet>
+              </fileSets>
+              <destFile>${project.build.directory}/jacoco-aggregate.exec</destFile>
+            </configuration>
+          </execution>
+          <execution>
+            <id>aggregate-report</id>
+            <phase>verify</phase>
+            <goals><goal>report</goal></goals>
+            <configuration>
+              <dataFile>${project.build.directory}/jacoco-aggregate.exec</dataFile>
+              <outputDirectory>${project.build.directory}/site/jacoco-aggregate</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>check-aggregate-coverage</id>
+            <phase>verify</phase>
+            <goals><goal>check</goal></goals>
+            <configuration>
+              <dataFile>${project.build.directory}/jacoco-aggregate.exec</dataFile>
+              <haltOnFailure>true</haltOnFailure>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${coverage.minimum}</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${coverage.minimum}</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
