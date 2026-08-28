@@ -81,5 +81,7 @@ course/
 
 ## Documentation
 
-- `docs/decisions-lot-1.md` — les décisions d'architecture et les écarts au cahier des
-  charges, avec leurs raisons.
+- `docs/decisions-lot-1.md` — structure, découpage Maven, seuil de couverture.
+- `docs/decisions-lot-2.md` — noyau partagé et domaine des courses : composition des
+  visibilités, choix de calcul (haversine, hystérésis du dénivelé, splits interpolés) et
+  ce qui prouve réellement l'idempotence de l'accumulateur.
