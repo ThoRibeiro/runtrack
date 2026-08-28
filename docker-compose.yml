@@ -1,0 +1,42 @@
+# Stack locale. Versions figées : un « latest » qui bouge sous les pieds fait échouer
+# un test d'intégration sans qu'aucune ligne de code n'ait changé.
+services:
+
+  postgres:
+    image: postgis/postgis:17-3.5
+    container_name: runtrack-postgres
+    environment:
+      POSTGRES_DB: runtrack
+      POSTGRES_USER: runtrack
+      POSTGRES_PASSWORD: runtrack
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U runtrack -d runtrack"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Dragonfly, pas Redis : les tests d'intégration tapent la même image que la prod,
+  # sans quoi on validerait des commandes que Dragonfly n'implémente pas pareil.
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.40.1
+    container_name: runtrack-dragonfly
+    ulimits:
+      memlock: -1
+    ports:
+      - "6379:6379"
+    command: ["--logtostderr", "--maxmemory=1gb"]
+    volumes:
+      - dragonfly-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:
+  dragonfly-data:
