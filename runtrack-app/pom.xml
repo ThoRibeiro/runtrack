@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.runtrack</groupId>
+    <artifactId>runtrack-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>runtrack-app</artifactId>
+  <name>runtrack-app</name>
+  <description>Assemblage exécutable et tests de frontières inter-modules</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.modulith</groupId>
+      <artifactId>spring-modulith-starter-core</artifactId>
+    </dependency>
+
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-user</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-auth</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-social</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-course</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-sharing</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-engagement</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-notification</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-feed</artifactId></dependency>
+
+    <dependency>
+      <groupId>org.springframework.modulith</groupId>
+      <artifactId>spring-modulith-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.modulith</groupId>
+      <artifactId>spring-modulith-docs</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <!-- The executable fat jar becomes runtrack-app-boot.jar so the main artifact
+               stays a plain jar: runtrack-coverage unpacks it, and a repackaged jar would
+               hand it every third-party class as well. -->
+          <classifier>boot</classifier>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -1,0 +1,5 @@
+/**
+ * Modèle riche, objets valeur, services de domaine et invariants du module {@code social}.
+ * Java pur : ni Spring, ni Jakarta, ni Jackson, ni JPA — vérifié par ArchUnit.
+ */
+package com.runtrack.social.internal.domain;
