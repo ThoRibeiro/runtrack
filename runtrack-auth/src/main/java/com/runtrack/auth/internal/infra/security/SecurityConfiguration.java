@@ -51,6 +51,14 @@ public class SecurityConfiguration {
                         // la physiologie du compte à n'importe qui. L'ordre est la règle.
                         .requestMatchers("/api/v1/users/me", "/api/v1/users/me/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*").permitAll()
+                        // Même piège d'ordre : « /activities/live » est un chemin concret que
+                        // le joker ci-dessous capturerait, alors qu'il exige une identité.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/activities/live").authenticated()
+                        // Les lectures de courses sont ouvertes ici et tranchées par
+                        // ActivityAccessPolicy : une course publique doit rester lisible sans
+                        // compte, et une course fermée répond « introuvable », pas 401.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/activities/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/*/activities").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(handling -> handling.authenticationEntryPoint(entryPoint))

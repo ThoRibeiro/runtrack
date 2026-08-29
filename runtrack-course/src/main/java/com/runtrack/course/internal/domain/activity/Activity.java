@@ -55,6 +55,18 @@ public final class Activity {
         return new Activity(id, ownerId, type, title, description, scope, startedAt, clockSkew);
     }
 
+    /**
+     * Restaure un agrégat déjà persisté. Réservé à la couche de persistance : elle rend un
+     * état qui a satisfait les invariants, elle ne les rejoue pas.
+     */
+    public static Activity rehydrate(ActivityId id, UserId ownerId, ActivityType type, String title,
+            String description, AudienceScope scope, ActivityStatus status, Instant startedAt,
+            DeviceClockSkew clockSkew) {
+        Activity activity = new Activity(id, ownerId, type, title, description, scope, startedAt, clockSkew);
+        activity.status = status;
+        return activity;
+    }
+
     public void pause(Instant at) {
         requireLive("ACTIVITY_NOT_LIVE", "Seule une course en cours peut être mise en pause");
         status = new ActivityStatus.Paused(at);

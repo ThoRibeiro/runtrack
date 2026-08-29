@@ -8,3 +8,4 @@ spring:
       - classpath:db/migration/user
       - classpath:db/migration/auth
       - classpath:db/migration/social
+      - classpath:db/migration/course
