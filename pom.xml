@@ -20,6 +20,7 @@
 
     <modules>
         <module>runtrack-shared</module>
+        <module>runtrack-platform</module>
         <module>runtrack-user</module>
         <module>runtrack-auth</module>
         <module>runtrack-social</module>
@@ -79,6 +80,11 @@
             <dependency>
                 <groupId>com.runtrack</groupId>
                 <artifactId>runtrack-shared</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.runtrack</groupId>
+                <artifactId>runtrack-platform</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

@@ -4,6 +4,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.random.RandomGenerator;
 import org.springframework.context.annotation.Bean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -13,6 +14,7 @@ import org.springframework.context.annotation.Configuration;
  * partout ailleurs, et de figer le temps en test avec {@code Clock.fixed}.
  */
 @Configuration
+@EnableConfigurationProperties(com.runtrack.platform.cache.CacheProperties.class)
 public class PlatformConfiguration {
 
     @Bean

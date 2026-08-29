@@ -26,6 +26,7 @@
       <artifactId>spring-boot-starter-webmvc</artifactId>
     </dependency>
 
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-platform</artifactId></dependency>
     <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-user</artifactId></dependency>
     <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-auth</artifactId></dependency>
     <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-social</artifactId></dependency>

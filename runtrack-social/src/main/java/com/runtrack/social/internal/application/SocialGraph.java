@@ -6,6 +6,7 @@ import com.runtrack.shared.error.ForbiddenException;
 import com.runtrack.shared.error.NotFoundException;
 import com.runtrack.shared.id.UserId;
 import com.runtrack.social.event.FollowAccepted;
+import com.runtrack.social.event.FollowDropped;
 import com.runtrack.social.event.FollowRequested;
 import com.runtrack.social.event.UserBlocked;
 import com.runtrack.social.internal.application.port.BlockRepository;
@@ -69,9 +70,17 @@ public class SocialGraph {
         });
     }
 
+    /**
+     * Se désabonner. Publie {@link FollowDropped} : sans événement, le cache des abonnés
+     * garderait une liste périmée jusqu'à expiration, et le fan-out notifierait encore
+     * quelqu'un qui vient de partir.
+     */
     @Transactional
     public void unfollow(UserId followerId, UserId followeeId) {
-        follows.findBetween(followerId, followeeId).ifPresent(follow -> follows.delete(follow.id()));
+        follows.findBetween(followerId, followeeId).ifPresent(follow -> {
+            follows.delete(follow.id());
+            events.publishEvent(new FollowDropped(followerId, followeeId, clock.instant()));
+        });
     }
 
     @Transactional
@@ -90,6 +99,7 @@ public class SocialGraph {
             throw new ConflictException("FOLLOW_ALREADY_ACCEPTED", "Cette demande est déjà acceptée");
         }
         follows.delete(follow.id());
+        events.publishEvent(new FollowDropped(follow.followerId(), follow.followeeId(), clock.instant()));
     }
 
     /**

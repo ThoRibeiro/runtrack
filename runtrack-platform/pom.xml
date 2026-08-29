@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.runtrack</groupId>
+    <artifactId>runtrack-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>runtrack-platform</artifactId>
+  <name>runtrack-platform</name>
+  <description>Préoccupations techniques transverses : erreurs RFC 9457, horloge, cache</description>
+
+  <!-- Module partagé, pas fonctionnel : le découpage de premier niveau reste métier.
+       Extrait de runtrack-app au lot 6, quand les trois modules qui cachent des données
+       ont eu besoin de la même mécanique de cache — la dupliquer trois fois aurait été
+       trois occasions de traiter différemment la panne du cache. -->
+  <dependencies>
+    <dependency>
+      <groupId>com.runtrack</groupId>
+      <artifactId>runtrack-shared</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+    <!-- Actuator, et pas micrometer-core seul : c'est lui qui fournit un MeterRegistry.
+         Les métriques de cache seraient sinon écrites nulle part. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

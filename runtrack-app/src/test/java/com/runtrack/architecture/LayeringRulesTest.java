@@ -48,9 +48,16 @@ class LayeringRulesTest {
             .should().dependOnClassesThat().haveSimpleNameEndingWith("Api")
             .because("§5.2 : le domaine décide sur des faits qu'on lui passe, l'application les résout");
 
+    /**
+     * {@code com.runtrack.platform} en est exclu : c'est le noyau technique partagé, et sa
+     * passerelle de cache parle forcément à Spring Data Redis. La règle protège les modules
+     * métier d'une fuite de la persistance, elle n'a pas à s'appliquer à une couche dont
+     * c'est précisément le rôle.
+     */
     @ArchTest
     static final ArchRule persistenceStaysInInfrastructure = noClasses()
             .that().resideOutsideOfPackage("..internal.infra..")
+            .and().resideOutsideOfPackage("com.runtrack.platform..")
             .should().dependOnClassesThat()
             .resideInAnyPackage("jakarta.persistence..", "org.springframework.data..")
             .because("le modèle JPA ne sort jamais de internal/infra");

@@ -7,3 +7,9 @@ spring:
     locations:
       - classpath:db/migration/user
       - classpath:db/migration/social
+
+  # Ces tests portent sur la persistance. Laisser le cache actif sans Dragonfly ferait
+  # passer chaque appel par le chemin dégradé — vert, mais ne testant plus rien du cache.
+runtrack:
+  cache:
+    enabled: false

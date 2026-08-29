@@ -19,6 +19,15 @@ spring:
       ddl-auto: validate
     open-in-view: false
 
+  data:
+    redis:
+      # Dragonfly parle le protocole RESP : le client Redis convient, l'image non.
+      host: ${RUNTRACK_REDIS_HOST:localhost}
+      port: ${RUNTRACK_REDIS_PORT:6379}
+      timeout: 2s
+      # Pas de pool de connexions : Lettuce multiplexe les commandes sur une connexion
+      # partagée et thread-safe. Un pool n'apporterait rien ici, et exigerait commons-pool2.
+
   flyway:
     enabled: true
     # Un emplacement par module : chaque table appartient à son module, ses migrations
@@ -30,6 +39,18 @@ spring:
       - classpath:db/migration/course
 
 runtrack:
+  cache:
+    enabled: true
+    # Part d'aléa ajoutée à chaque TTL : mille clés écrites ensemble ne doivent pas
+    # expirer ensemble, sinon la charge repart en base d'un bloc.
+    jitter-ratio: 0.2
+    user-ttl: 10m
+    social-ttl: 5m
+    activity-summary-ttl: 24h
+    counters-ttl: 1m
+    share-token-ttl: 15m
+    feed-head-ttl: 30s
+
   auth:
     jwt:
       # Chemins, jamais de clé en dur. Sans eux, une paire éphémère est tirée au démarrage

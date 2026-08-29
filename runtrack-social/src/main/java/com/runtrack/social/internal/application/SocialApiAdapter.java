@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** L'implémentation du contrat public du module. */
-@Service
+@Service("socialApiAdapter")
 class SocialApiAdapter implements SocialApi {
 
     private final FollowRepository follows;

@@ -21,6 +21,7 @@
        Order in the reactor guarantees their exec files already exist. -->
   <dependencies>
     <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-shared</artifactId></dependency>
+    <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-platform</artifactId></dependency>
     <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-user</artifactId></dependency>
     <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-auth</artifactId></dependency>
     <dependency><groupId>com.runtrack</groupId><artifactId>runtrack-social</artifactId></dependency>

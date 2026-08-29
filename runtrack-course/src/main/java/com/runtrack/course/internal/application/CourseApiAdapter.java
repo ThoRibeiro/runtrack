@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** L'implémentation du contrat public du module. Traduit, ne décide pas. */
-@Service
+@Service("courseApiAdapter")
 class CourseApiAdapter implements CourseApi {
 
     private final ActivityRepository activities;
