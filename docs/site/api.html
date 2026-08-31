@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RunTrack — référence de l'API</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui.css">
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .back {
+      display: block; padding: 0.9rem 1.4rem; background: #12161c; color: #e6edf3;
+      text-decoration: none; font-size: 0.9rem; border-bottom: 1px solid #2a323d;
+    }
+    .back:hover { color: #7cc4ff; }
+  </style>
+</head>
+<body>
+  <a class="back" href="./">&larr; Documentation RunTrack</a>
+  <div id="swagger"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-bundle.js"></script>
+  <script>
+    window.ui = SwaggerUIBundle({
+      url: './openapi.json',
+      dom_id: '#swagger',
+      deepLinking: true,
+      docExpansion: 'none',
+      defaultModelsExpandDepth: 0,
+      tryItOutEnabled: true,
+      // L'application locale, pas ce site : Pages ne sert que des fichiers.
+      servers: [{ url: 'http://localhost:8080', description: 'Instance locale' }]
+    });
+  </script>
+</body>
+</html>

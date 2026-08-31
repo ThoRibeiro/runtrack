@@ -265,6 +265,26 @@ requête se suit d'un bout à l'autre, écouteurs asynchrones compris.
   diagrammes PlantUML et canevas par module, versionnés avec le code plutôt que perdus
   au premier `mvn clean`.
 
+## Documentation publiée
+
+Le site est construit et déployé **à chaque commit sur `main`** par
+`.github/workflows/ci.yml`, sur GitHub Pages :
+
+| Page | Contenu |
+|---|---|
+| `/` | la documentation générale : découpage, flux temps réel, chaîne de notification, décisions |
+| `/api.html` | la référence de l'API, Swagger UI sur la description générée |
+| `/openapi.json` | la description brute, **écrite par le build** — pas à la main |
+| `/coverage/` | le rapport JaCoCo agrégé |
+
+La description OpenAPI n'est pas produite par une étape à part : c'est `OpenApiIT` qui l'écrit,
+**après** que ses assertions ont vérifié son contenu. Le fichier publié est donc exactement celui
+que le build vient de valider — une génération séparée pourrait publier un document vide sans
+que rien ne l'attrape.
+
+Le « Try it out » de Swagger vise `http://localhost:8080` : Pages ne sert que des fichiers, et
+c'est l'application locale qui répond.
+
 ## API
 
 - **Documentation interactive** : <http://localhost:8080/swagger-ui.html>, générée par

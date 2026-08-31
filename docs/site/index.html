@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RunTrack — back-end de suivi de courses en temps réel</title>
+  <meta name="description" content="Suivi de courses à pied entre amis : ingestion GPS idempotente, diffusion temps réel multi-instance, notifications transactionnelles. Java 25, Spring Boot 4, Spring Modulith.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<header>
+  <div class="enveloppe">
+    <h1>RunTrack</h1>
+    <p>Un coureur démarre, ses amis sont prévenus, ils suivent sa position en direct,
+       et la course est historisée à l'arrivée.</p>
+    <div class="pile">
+      <span>Java 25</span><span>Spring Boot 4.1</span><span>Spring Modulith 2.1</span>
+      <span>PostgreSQL + PostGIS</span><span>Dragonfly</span><span>Fils virtuels</span>
+    </div>
+    <div class="liens">
+      <a class="principal" href="./api.html">Référence de l'API</a>
+      <a href="./coverage/index.html">Couverture des tests</a>
+      <a href="./openapi.json">openapi.json</a>
+    </div>
+  </div>
+</header>
+
+<main class="enveloppe">
+
+<p>Neuf modules fonctionnels, 810 tests, 94 % de couverture ligne. Le back-end est complet :
+les treize lots du cahier des charges sont livrés, et chaque écart assumé est expliqué à
+l'endroit du code où la question se pose.</p>
+
+<p>Cette page décrit ce qui n'est <em>pas</em> lisible dans le code : pourquoi le découpage est
+celui-là, ce qui traverse plusieurs modules, et les décisions dont on ne devine pas la raison
+en lisant une classe isolément.</p>
+
+<h2>Le découpage</h2>
+
+<p>Le premier niveau est <strong>fonctionnel</strong>, jamais technique. L'architecture
+hexagonale s'applique <em>à l'intérieur</em> de chaque module, pas au-dessus.</p>
+
+<div class="schema"><pre>
+auth ─────────┐
+social ───────┼──▶ user
+course ───────┘
+sharing ──────┐
+engagement ───┼──▶ course
+              │
+notification ─┴──▶ user, social, course, engagement   (personne n'en dépend)
+feed ────────────▶ user, social, course, engagement   (personne n'en dépend)
+</pre></div>
+
+<p>Le graphe est déclaré <strong>à deux endroits, volontairement</strong> : dans les
+<code>pom.xml</code> — Maven refuse un cycle — et dans les
+<code>@ApplicationModule(allowedDependencies = …)</code>, car Modulith interdit en plus
+d'atteindre les paquets imbriqués du voisin, ce que le classpath autoriserait.</p>
+
+<p>Chaque module a la même forme, avec le vocabulaire des APIs Lark :</p>
+
+<pre><code>course/
+├── CourseApi.java        seul point d'entrée pour les autres modules
+├── event/                événements publiés — contrat inter-modules
+├── usecases/
+│   ├── model/            Java pur : ni Spring, ni Jakarta, ni Jackson, ni JPA
+│   ├── service/          cas d'usage
+│   └── port/             ports sortants
+└── infrastructure/
+    ├── endpoint/ dto/    REST
+    ├── repository/       implémentations des ports
+    └── cache/ realtime/</code></pre>
+
+<h3>Deux écarts assumés à ce vocabulaire</h3>
+
+<p><strong>Les ports vivent dans <code>usecases/port/</code></strong>, pas dans
+<code>infrastructure/repository/</code>. La dépendance va vers le centre, et une règle ArchUnit
+le vérifie à chaque build : adopter l'autre position échangerait une garantie vérifiée contre un
+nom de dossier.</p>
+
+<p><strong>Un seul <code>@ControllerAdvice</code>, global.</strong> Le scoper par
+<code>assignableTypes</code> laisse les endpoints d'une seconde version d'API sans mapping —
+leurs exceptions remontent alors en 500 au lieu de 401 ou 403. Ce piège est documenté dans un
+service réel ; l'importer serait un choix, pas un oubli.</p>
+
+<h2>Le direct — de la montre à l'écran d'un spectateur</h2>
+
+<p>Le point difficile n'est pas d'émettre un événement, c'est qu'un spectateur connecté à
+l'instance <strong>B</strong> voie une course dont les points arrivent sur l'instance
+<strong>A</strong>.</p>
+
+<div class="schema"><pre>
+  téléphone du coureur                     spectateurs
+         │                                  ▲        ▲
+         │ POST /activities/{id}/points     │ SSE    │ SSE
+         ▼                                  │        │
+   ┌───────────────┐                 ┌──────┴──┐  ┌──┴──────┐
+   │  instance A   │                 │  inst.A │  │  inst.B │
+   │ PointIngestion│                 └────┬────┘  └────┬────┘
+   │   ├ filtre    │                      │ registre   │ registre
+   │   ├ dédup     │                      │ d'émetteurs│
+   │   ├ accumule  │                      ▲            ▲
+   │   └ COMMIT ───┼──────────┐           │  XREAD     │  XREAD
+   └───────────────┘          │           └────────────┴──────┐
+                              ▼                                │
+                   ┌──────────────────────────────────┐        │
+                   │ Dragonfly Stream                 │────────┘
+                   │ live:activity:{id}:events        │
+                   │ MAXLEN borné · id: = Last-Event-ID
+                   └──────────────────────────────────┘
+</pre></div>
+
+<p>Trois enchaînements de ce schéma ne sont pas interchangeables :</p>
+
+<ol>
+  <li><strong>la publication attend le commit.</strong> Annoncer une position avant, c'est
+  l'annoncer alors qu'un conflit optimiste peut encore l'effacer — et ce conflit est ordinaire,
+  pas exceptionnel ;</li>
+  <li><strong>on s'abonne au flux avant de lire l'instantané</strong>, et l'instantané est inséré
+  <em>en tête</em> de la file du spectateur. L'inverse perdrait les événements survenus pendant
+  la lecture en base, sans que personne ne s'en aperçoive ;</li>
+  <li><strong>une instance ne suit une course que tant qu'elle a un spectateur pour elle.</strong>
+  C'est ce qui borne le nombre de connexions ouvertes.</li>
+</ol>
+
+<blockquote>
+  <p><strong>Un piège coûteux, trouvé en test d'intégration.</strong>
+  <code>ReadOffset.latest()</code> fait repartir Spring de « maintenant » à <em>chaque</em>
+  lecture : tout ce qui s'écrit entre deux <code>XREAD</code> tombe dans le vide. Un lot de
+  quatre points n'en faisait parvenir qu'un, sans la moindre erreur.</p>
+  <p>Les abonnements partent désormais d'un identifiant d'entrée concret. Aucun test unitaire
+  n'aurait pu l'attraper.</p>
+</blockquote>
+
+<h2>La chaîne de notification</h2>
+
+<div class="schema"><pre>
+  POST /activities            ┌─ transaction métier ────────────┐
+        │                     │ ActivityLifecycle.start()       │
+        └────────────────────▶│   ├ écrit la course             │
+                              │   └ publishEvent(ActivityStarted)
+                              └───────────┬─────────────────────┘
+                                          │ COMMIT
+                                          ▼
+                         ┌────────────────────────────────┐
+                         │ Event Publication Registry     │  ← l'outbox, fournie par
+                         │ (table event_publication)      │    Modulith, pas écrite
+                         └───────────┬────────────────────┘
+                                     │ @ApplicationModuleListener
+                        ┌────────────┴────────────┐   (autre fil, après commit)
+                        ▼                         ▼
+              ┌──────────────────┐      ┌──────────────────┐
+              │  notification    │      │      feed        │
+              │  ├ audience      │      │  └ projection    │
+              │  ├ préférences   │      └──────────────────┘
+              │  └ écrit la boîte│
+              └────────┬─────────┘
+                       │ après la transaction d'écriture
+          ┌────────────┴────────────┐
+          ▼                         ▼
+   ┌─────────────┐         ┌────────────────┐
+   │ SSE in-app  │         │ PushDelivery   │
+   └─────────────┘         │  ├ heures calmes│
+                           │  ├ anti-spam   │
+                           │  └ FCM par lots│
+                           └────────────────┘
+</pre></div>
+
+<p>Le registre apporte — et dispense donc d'écrire — l'exécution après commit, en asynchrone,
+l'événement persisté <strong>avant</strong> traitement et complété après, et le rejeu au
+redémarrage. Restent à notre charge : le recul exponentiel entre deux reprises, l'arrêt après
+cinq échecs, et le fait qu'aucun appel à Firebase ne se trouve dans une transaction métier.</p>
+
+<h3>L'idempotence tient dans un identifiant</h3>
+
+<p>Un rejeu ne doit pas notifier deux fois. L'identifiant d'une notification est donc
+<strong>déduit</strong> de ce qui l'a provoquée — nature, destinataire, sujet, et l'instant de
+l'<em>événement</em> — puis l'insertion ignore les conflits. Se réabonner à quelqu'un notifie
+quand même : c'est un second événement, pas un rejeu.</p>
+
+<h3>Le fil de corrélation traverse les fils d'exécution</h3>
+
+<p>Un <code>ScopedValue</code> ne franchit pas un changement de fil. L'identifiant de corrélation
+voyage donc <strong>dans le champ <code>correlationId</code> de chaque événement</strong>, et la
+portée est rouverte à l'entrée de chacun des dix-sept écouteurs. Sans ce geste, les journaux ne
+seraient corrélés que sur le chemin HTTP — et on ne s'en apercevrait qu'en cherchant, en
+production, pourquoi une notification est partie.</p>
+
+<h2>Ce que le cahier des charges appelait des pièges</h2>
+
+<div class="enveloppe-table">
+<table>
+  <thead><tr><th>Sujet</th><th>La décision, et pourquoi</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Fan-out du fil</td>
+      <td><strong>À la lecture.</strong> Une ligne par destinataire ferait des dizaines de
+      milliers d'insertions au démarrage d'une course d'un compte très suivi.</td>
+    </tr>
+    <tr>
+      <td>Décision <code>canView</code></td>
+      <td><strong>Jamais cachée.</strong> Cardinalité N×M, invalidation impossible à cibler. On
+      cache les faits, on recompose la décision en mémoire : c'est gratuit et exact.</td>
+    </tr>
+    <tr>
+      <td>Blocages</td>
+      <td><strong>Jamais cachés.</strong> Une valeur périmée de cinq minutes laisserait quelqu'un
+      voir ce qu'il ne doit plus voir. Un cache qui peut rouvrir une porte n'en est pas un.</td>
+    </tr>
+    <tr>
+      <td>Lien de partage</td>
+      <td>Le jeton est <strong>stocké haché</strong> : une fuite de la base ne doit pas ouvrir les
+      courses partagées. SHA-256 et non Argon2 — un secret de 256 bits tiré au sort n'a pas de
+      dictionnaire, et le hachage lent coûterait à chaque ouverture.</td>
+    </tr>
+    <tr>
+      <td>Quota de connexion</td>
+      <td><strong>Deux axes.</strong> Par IP contre le balayage de mille comptes, par compte contre
+      le forçage d'un mot de passe en changeant d'adresse. Le quota par IP est vingt fois plus
+      large : une adresse est partagée, un compte ne l'est pas.</td>
+    </tr>
+    <tr>
+      <td>Points bruts</td>
+      <td>Purgés <strong>90 jours</strong> après historisation, et seulement pour ce qui a été
+      archivé. Conséquence assumée : l'export GPX n'est possible que dans cette fenêtre.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Démarrer en local</h2>
+
+<pre><code>docker compose up -d                  # Postgres + PostGIS, Dragonfly
+export JAVA_HOME=$(/usr/libexec/java_home -v 25)
+mvn verify                            # compile, tests, seuil de couverture
+mvn -pl runtrack-app spring-boot:run  # profil `local` par défaut</code></pre>
+
+<p>Puis <code>http://localhost:8080/swagger-ui.html</code>. Le fichier
+<code>docs/api/runtrack.http</code> parcourt l'API de bout en bout — créer un compte, courir,
+partager, commenter — et s'ouvre dans IntelliJ comme dans VS Code.</p>
+
+<blockquote>
+  <p>Deux choses font échouer un premier lancement, et leurs messages ne le disent pas :
+  le build <strong>exige un JDK 25</strong>, et les tests d'intégration
+  <strong>démarrent des conteneurs</strong> — sans Docker en marche, une cinquantaine
+  d'entre eux échouent d'un bloc sur un message qui ressemble à une panne de code.</p>
+</blockquote>
+
+<h2>Ce que le build vérifie</h2>
+
+<ul>
+  <li><code>ApplicationModules.verify()</code> — frontières, cycles, interfaces nommées ;</li>
+  <li><strong>onze règles ArchUnit</strong> : domaine sans framework, sens des dépendances, JPA et
+  cache confinés à l'infrastructure, aucun <code>reactor.*</code>, pas de Lombok, injection par
+  constructeur, aucun <code>Instant.now()</code> en dur ;</li>
+  <li><strong>80 % de couverture</strong> ligne et branche, sur l'union unitaires + intégration,
+  <code>haltOnFailure</code> ;</li>
+  <li>la description OpenAPI, générée <em>et vérifiée</em> : une documentation générée échoue en
+  silence, et un <code>/v3/api-docs</code> qui répond 200 avec zéro chemin est le pire des deux
+  mondes.</li>
+</ul>
+
+<footer>
+  <p>Documentation générée à chaque déploiement depuis le dépôt.
+     La référence de l'API est <a href="./openapi.json">produite par le build</a>, pas écrite
+     à la main.</p>
+</footer>
+
+</main>
+</body>
+</html>

@@ -224,3 +224,7 @@ Authorization: Bearer {{token}}
 ### Depuis toujours : le seul cas sans borne inférieure.
 GET {{api}}/users/me/stats?period=ALL
 Authorization: Bearer {{token}}
+
+### 16 — La description OpenAPI elle-même
+# Servie par l'application ; la même est publiée sur GitHub Pages, écrite par le build.
+GET {{host}}/v3/api-docs/9-tout

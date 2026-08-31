@@ -18,6 +18,11 @@ import tools.jackson.databind.ObjectMapper;
  * <p>Ce test existe parce qu'une documentation générée échoue en silence : springdoc n'explore les
  * contrôleurs qu'au démarrage, et une incompatibilité de version rend un document vide sans lever
  * la moindre erreur. Un `/v3/api-docs` qui répond 200 avec zéro chemin est le pire des deux mondes.
+ *
+ * <p>Il <b>écrit</b> aussi la description sur le disque, pour le site publié sur GitHub Pages.
+ * L'écrire ici plutôt que dans une étape de build à part a une raison : le fichier publié est
+ * exactement celui que les assertions ci-dessous viennent de vérifier. Une génération séparée
+ * pourrait publier un document vide sans que rien ne l'attrape.
  */
 class OpenApiIT extends ApiIntegrationTest {
 
@@ -27,9 +32,27 @@ class OpenApiIT extends ApiIntegrationTest {
     @Autowired
     private ObjectMapper json;
 
+    /** Relatif à {@code runtrack-app/}, d'où les tests s'exécutent. */
+    private static final java.nio.file.Path PUBLISHED =
+            java.nio.file.Path.of("target", "openapi", "openapi.json");
+
     private JsonNode documentAt(String path) throws Exception {
         MvcResult described = mvc.perform(get(path)).andExpect(status().isOk()).andReturn();
         return json.readTree(described.getResponse().getContentAsString());
+    }
+
+    @Test
+    void theDocumentIsWrittenForThePublishedSite() throws Exception {
+        MvcResult described = mvc.perform(get("/v3/api-docs/9-tout"))
+                .andExpect(status().isOk()).andReturn();
+        String document = described.getResponse().getContentAsString();
+
+        java.nio.file.Files.createDirectories(PUBLISHED.getParent());
+        java.nio.file.Files.writeString(PUBLISHED, document);
+
+        assertThat(java.nio.file.Files.readString(PUBLISHED))
+                .contains("\"openapi\"")
+                .contains("/api/v1/activities");
     }
 
     @Test
