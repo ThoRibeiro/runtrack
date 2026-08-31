@@ -1,5 +1,8 @@
 package com.runtrack.course.internal.infra.rest;
 
+import static com.runtrack.course.internal.infra.rest.Principals.asViewer;
+import static com.runtrack.course.internal.infra.rest.Principals.requireUser;
+
 import com.runtrack.course.internal.application.ActivityLifecycle;
 import com.runtrack.course.internal.application.ActivityQueries;
 import com.runtrack.course.internal.domain.activity.Activity;
@@ -7,7 +10,6 @@ import com.runtrack.course.internal.domain.activity.ActivityType;
 import com.runtrack.course.internal.infra.rest.dto.ActivityDtos;
 import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.shared.access.Viewer;
-import com.runtrack.shared.error.ForbiddenException;
 import com.runtrack.shared.id.ActivityId;
 import com.runtrack.shared.id.UserId;
 import com.runtrack.social.SocialApi;
@@ -159,18 +161,5 @@ class ActivityController {
             return DEFAULT_PAGE_SIZE;
         }
         return Math.clamp(requested, 1, MAX_PAGE_SIZE);
-    }
-
-    /** Un lecteur absent est un anonyme, pas une erreur : certaines courses sont publiques. */
-    private static Viewer asViewer(Viewer viewer) {
-        return viewer == null ? Viewer.Anonymous.INSTANCE : viewer;
-    }
-
-    private static UserId requireUser(Viewer viewer) {
-        if (viewer == null) {
-            throw new ForbiddenException("AUTHENTICATION_REQUIRED", "Cette action demande d'être connecté");
-        }
-        return viewer.userId().orElseThrow(() -> new ForbiddenException(
-                "AUTHENTICATION_REQUIRED", "Un lien de partage ne permet pas d'agir sur une course"));
     }
 }

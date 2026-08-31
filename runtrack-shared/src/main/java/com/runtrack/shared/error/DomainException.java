@@ -11,7 +11,11 @@ public abstract sealed class DomainException extends RuntimeException
     private final String code;
 
     protected DomainException(String code, String message) {
-        super(message);
+        this(code, message, null);
+    }
+
+    protected DomainException(String code, String message, Throwable cause) {
+        super(message, cause);
         if (code == null || code.isBlank()) {
             throw new IllegalArgumentException("Une erreur métier sans code n'est pas exploitable côté client");
         }

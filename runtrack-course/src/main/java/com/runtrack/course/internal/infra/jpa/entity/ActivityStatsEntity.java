@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -36,6 +37,16 @@ public class ActivityStatsEntity {
 
     @Column(name = "elevation_loss", nullable = false)
     private double elevationLoss;
+
+    /**
+     * Le verrou optimiste de l'ingestion.
+     *
+     * <p>C'est ici que la concurrence se produit réellement : deux lots de points envoyés
+     * coup sur coup, ou un tampon rejoué pendant un retry réseau. « Un seul écrivain par
+     * course » est une hypothèse de client, pas une garantie de serveur.
+     */
+    @Version
+    private long version;
 
     protected ActivityStatsEntity() {
     }

@@ -26,7 +26,7 @@ final class ActivityMapper {
                 toStats(stats));
     }
 
-    private static ActivityDtos.StatsResponse toStats(ActivityStats stats) {
+    static ActivityDtos.StatsResponse toStats(ActivityStats stats) {
         return new ActivityDtos.StatsResponse(
                 stats.distance().meters(),
                 stats.elapsed().toSeconds(),
