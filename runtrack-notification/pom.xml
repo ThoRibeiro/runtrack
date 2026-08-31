@@ -52,6 +52,15 @@
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
     </dependency>
+    <!-- Firebase authentication only: turning a service-account file into a short-lived
+         access token. Hand-rolling the RS256 JWT and the token exchange would be a second
+         implementation of something the platform already gets right. -->
+    <dependency>
+      <groupId>com.google.auth</groupId>
+      <artifactId>google-auth-library-oauth2-http</artifactId>
+      <version>1.30.0</version>
+    </dependency>
+
     <!-- For @AuthenticationPrincipal only: the controller reads the Viewer that the auth
          module's filter placed in the context, without depending on that module. -->
     <dependency>

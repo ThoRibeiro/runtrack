@@ -5,11 +5,14 @@ import static com.runtrack.notification.internal.infra.rest.NotificationControll
 import com.runtrack.notification.internal.application.NotificationSettings;
 import com.runtrack.notification.internal.domain.inbox.NotificationPreferences;
 import com.runtrack.notification.internal.domain.inbox.NotificationType;
+import com.runtrack.notification.internal.domain.push.QuietHours;
 import com.runtrack.notification.internal.infra.rest.dto.NotificationDtos;
 import com.runtrack.shared.access.Viewer;
 import jakarta.validation.Valid;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -40,7 +43,8 @@ class NotificationPreferencesController {
             @AuthenticationPrincipal Viewer viewer,
             @Valid @RequestBody NotificationDtos.PreferencesRequest request) {
 
-        return toResponse(settings.mute(requireUser(viewer), parse(request.muted())));
+        return toResponse(settings.update(
+                requireUser(viewer), parse(request.muted()), quietHoursOf(request.quietHours())));
     }
 
     /**
@@ -53,7 +57,24 @@ class NotificationPreferencesController {
         return new NotificationDtos.PreferencesResponse(
                 preferences.muted().stream().map(NotificationType::name).collect(Collectors.toSet()),
                 Arrays.stream(NotificationType.values()).map(NotificationType::name)
-                        .collect(Collectors.toCollection(java.util.LinkedHashSet::new)));
+                        .collect(Collectors.toCollection(java.util.LinkedHashSet::new)),
+                preferences.quietHours()
+                        .map(hours -> new NotificationDtos.QuietHoursDto(
+                                hours.from(), hours.to(), hours.zone().getId()))
+                        .orElse(null));
+    }
+
+    /** Un fuseau inconnu est une donnée invalide : 422, et non des heures calmes silencieusement ignorées. */
+    private static Optional<QuietHours> quietHoursOf(NotificationDtos.QuietHoursDto requested) {
+        if (requested == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(new QuietHours(
+                    requested.from(), requested.to(), ZoneId.of(requested.zone())));
+        } catch (java.time.DateTimeException unknown) {
+            throw new IllegalArgumentException("Fuseau horaire inconnu : " + requested.zone(), unknown);
+        }
     }
 
     /** Une nature inconnue est une donnée invalide : 422, et non une préférence ignorée en silence. */

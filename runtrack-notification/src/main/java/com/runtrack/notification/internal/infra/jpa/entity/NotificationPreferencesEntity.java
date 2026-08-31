@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalTime;
 import java.util.UUID;
 
 /**
@@ -25,12 +26,45 @@ public class NotificationPreferencesEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String muted;
 
+    /**
+     * Les heures calmes, en trois colonnes plutôt qu'une chaîne.
+     *
+     * <p>Elles vont ensemble ou pas du tout, et une contrainte de la base le dit : deux colonnes
+     * remplies sur trois donneraient une plage dont personne ne saurait quoi faire.
+     */
+    @Column(name = "quiet_from")
+    private LocalTime quietFrom;
+
+    @Column(name = "quiet_to")
+    private LocalTime quietTo;
+
+    @Column(name = "quiet_zone", length = 64)
+    private String quietZone;
+
     protected NotificationPreferencesEntity() {
     }
 
     public NotificationPreferencesEntity(UUID userId, String muted) {
         this.userId = userId;
         this.muted = muted;
+    }
+
+    public LocalTime getQuietFrom() {
+        return quietFrom;
+    }
+
+    public LocalTime getQuietTo() {
+        return quietTo;
+    }
+
+    public String getQuietZone() {
+        return quietZone;
+    }
+
+    public void quietHours(LocalTime from, LocalTime to, String zone) {
+        this.quietFrom = from;
+        this.quietTo = to;
+        this.quietZone = zone;
     }
 
     public UUID getUserId() {

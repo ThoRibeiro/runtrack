@@ -3,7 +3,9 @@ package com.runtrack.notification.internal.application;
 import com.runtrack.notification.internal.application.port.NotificationPreferencesRepository;
 import com.runtrack.notification.internal.domain.inbox.NotificationPreferences;
 import com.runtrack.notification.internal.domain.inbox.NotificationType;
+import com.runtrack.notification.internal.domain.push.QuietHours;
 import com.runtrack.shared.id.UserId;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,9 +26,19 @@ public class NotificationSettings {
         return preferences.find(userId).orElseGet(() -> NotificationPreferences.everythingOn(userId));
     }
 
+    /**
+     * Remplace l'ensemble des réglages, plutôt que d'en modifier un.
+     *
+     * <p>C'est l'écran de préférences qui appelle : il connaît l'état complet, et un remplacement
+     * ne peut pas dériver — là où un ajout et un retrait finissent toujours par se croiser.
+     */
     @Transactional
-    public NotificationPreferences mute(UserId userId, Set<NotificationType> types) {
-        NotificationPreferences updated = NotificationPreferences.everythingOn(userId).mute(types);
+    public NotificationPreferences update(UserId userId, Set<NotificationType> muted,
+            Optional<QuietHours> quietHours) {
+
+        NotificationPreferences updated = NotificationPreferences.everythingOn(userId)
+                .mute(muted)
+                .quietBetween(quietHours);
         preferences.save(updated);
         return updated;
     }

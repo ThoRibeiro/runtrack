@@ -3,6 +3,7 @@ package com.runtrack.notification.internal.infra.events;
 import com.runtrack.course.event.ActivityFinished;
 import com.runtrack.course.event.ActivityStarted;
 import com.runtrack.notification.internal.application.NotificationDispatch;
+import com.runtrack.notification.internal.application.PushDelivery;
 import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.social.event.FollowAccepted;
 import com.runtrack.social.event.FollowRequested;
@@ -21,38 +22,44 @@ import org.springframework.stereotype.Component;
  * <p>Conséquence directe : un démarrage de course ne peut ni ralentir ni échouer à cause de ce
  * qui se passe ici. Le coureur a commencé à courir avant que la première notification soit écrite.
  *
- * <p>Aucune règle dans cette classe, seulement de la traduction. Les décisions — qui recevoir,
- * quoi couper, où mener — sont dans {@link NotificationDispatch}, où elles se testent sans
- * contexte Spring.
+ * <p>Aucune règle dans cette classe, seulement de la traduction et un enchaînement. Les décisions
+ * — qui recevoir, quoi couper, où mener — sont dans {@link NotificationDispatch}, où elles se
+ * testent sans contexte Spring.
+ *
+ * <p>L'enchaînement, lui, compte : le push part <b>après</b> que la transaction d'écriture s'est
+ * refermée, et seulement pour ce qui a réellement été écrit. C'est ainsi que le §7 obtient son
+ * « aucun appel réseau dans la transaction », et qu'un rejeu ne repousse rien.
  */
 @Component
 class NotificationListeners {
 
     private final NotificationDispatch dispatch;
+    private final PushDelivery push;
 
-    NotificationListeners(NotificationDispatch dispatch) {
+    NotificationListeners(NotificationDispatch dispatch, PushDelivery push) {
         this.dispatch = dispatch;
+        this.push = push;
     }
 
     @ApplicationModuleListener
     void onActivityStarted(ActivityStarted event) {
-        dispatch.runStarted(event.activityId(), event.ownerId(),
-                AudienceScope.valueOf(event.effectiveScope()), event.at());
+        push.push(dispatch.runStarted(event.activityId(), event.ownerId(),
+                AudienceScope.valueOf(event.effectiveScope()), event.at()));
     }
 
     @ApplicationModuleListener
     void onActivityFinished(ActivityFinished event) {
-        dispatch.runFinished(event.activityId(), event.ownerId(),
-                AudienceScope.valueOf(event.effectiveScope()), event.at());
+        push.push(dispatch.runFinished(event.activityId(), event.ownerId(),
+                AudienceScope.valueOf(event.effectiveScope()), event.at()));
     }
 
     @ApplicationModuleListener
     void onFollowAccepted(FollowAccepted event) {
-        dispatch.followAccepted(event.followerId(), event.followeeId(), event.at());
+        push.push(dispatch.followAccepted(event.followerId(), event.followeeId(), event.at()));
     }
 
     @ApplicationModuleListener
     void onFollowRequested(FollowRequested event) {
-        dispatch.followRequested(event.followerId(), event.followeeId(), event.at());
+        push.push(dispatch.followRequested(event.followerId(), event.followeeId(), event.at()));
     }
 }

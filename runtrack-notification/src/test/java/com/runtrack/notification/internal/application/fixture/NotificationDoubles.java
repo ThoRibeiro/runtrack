@@ -2,12 +2,19 @@ package com.runtrack.notification.internal.application.fixture;
 
 import com.runtrack.notification.internal.application.port.NotificationBroadcaster;
 import com.runtrack.notification.internal.application.port.NotificationPreferencesRepository;
+import com.runtrack.notification.internal.application.port.DeviceTokenRepository;
 import com.runtrack.notification.internal.application.port.NotificationRepository;
+import com.runtrack.notification.internal.application.port.PushSender;
+import com.runtrack.notification.internal.application.port.PushThrottle;
 import com.runtrack.notification.internal.domain.inbox.Notification;
 import com.runtrack.notification.internal.domain.inbox.NotificationId;
 import com.runtrack.notification.internal.domain.inbox.NotificationPreferences;
+import com.runtrack.notification.internal.domain.inbox.NotificationType;
+import com.runtrack.notification.internal.domain.push.DeviceToken;
+import com.runtrack.notification.internal.domain.push.PushMessage;
 import com.runtrack.shared.id.UserId;
 import com.runtrack.social.SocialApi;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -131,6 +138,141 @@ public final class NotificationDoubles {
 
         public List<Notification> delivered() {
             return List.copyOf(delivered);
+        }
+    }
+
+    /** Les appareils en mémoire, avec la même clé que la table : le jeton. */
+    public static final class Devices implements DeviceTokenRepository {
+
+        private final Map<String, DeviceToken> stored = new LinkedHashMap<>();
+
+        @Override
+        public void register(DeviceToken device) {
+            stored.put(device.token(), device);
+        }
+
+        @Override
+        public boolean forget(UserId ownerId, String token) {
+            return Optional.ofNullable(stored.get(token))
+                    .filter(device -> device.ownerId().equals(ownerId))
+                    .map(device -> stored.remove(token) != null)
+                    .orElse(false);
+        }
+
+        @Override
+        public List<DeviceToken> of(UserId ownerId) {
+            return stored.values().stream()
+                    .filter(device -> device.ownerId().equals(ownerId))
+                    .toList();
+        }
+
+        @Override
+        public List<DeviceToken> ofAll(Collection<UserId> ownerIds) {
+            return stored.values().stream()
+                    .filter(device -> ownerIds.contains(device.ownerId()))
+                    .toList();
+        }
+
+        @Override
+        public int forgetAll(Collection<String> tokens) {
+            int before = stored.size();
+            tokens.forEach(stored::remove);
+            return before - stored.size();
+        }
+
+        public int size() {
+            return stored.size();
+        }
+    }
+
+    /** Retient chaque envoi, et rend invalides les jetons qu'on lui désigne d'avance. */
+    public static final class Sender implements PushSender {
+
+        private final List<Sent> sent = new ArrayList<>();
+        private final Set<String> invalid = new LinkedHashSet<>();
+
+        public record Sent(List<DeviceToken> devices, PushMessage message) {
+        }
+
+        public Sender rejecting(String... tokens) {
+            invalid.addAll(List.of(tokens));
+            return this;
+        }
+
+        @Override
+        public Result send(List<DeviceToken> devices, PushMessage message) {
+            sent.add(new Sent(List.copyOf(devices), message));
+            Set<String> rejected = devices.stream().map(DeviceToken::token)
+                    .filter(invalid::contains)
+                    .collect(java.util.stream.Collectors.toSet());
+            return new Result(devices.size() - rejected.size(), rejected);
+        }
+
+        public List<Sent> sent() {
+            return List.copyOf(sent);
+        }
+    }
+
+    /** Un garde-fou qui laisse passer une fois par clé, comme celui de Dragonfly. */
+    public static final class Throttle implements PushThrottle {
+
+        private final Set<String> armed = new LinkedHashSet<>();
+        private boolean alwaysAllow;
+
+        public Throttle allowingEverything() {
+            this.alwaysAllow = true;
+            return this;
+        }
+
+        @Override
+        public boolean allow(UserId actorId, UserId recipientId, NotificationType type,
+                Duration window) {
+
+            return alwaysAllow || armed.add(type.name() + actorId + recipientId);
+        }
+    }
+
+    /** Ne répond qu'à la question que le push pose : sous quel nom afficher l'acteur. */
+    public static class Users implements com.runtrack.user.UserApi {
+
+        @Override
+        public UserId register(com.runtrack.user.NewUser newUser) {
+            throw new UnsupportedOperationException("Hors du périmètre de notification");
+        }
+
+        @Override
+        public void confirmEmail(UserId id) {
+            throw new UnsupportedOperationException("Hors du périmètre de notification");
+        }
+
+        @Override
+        public Optional<UserId> idOfEmail(String email) {
+            return Optional.empty();
+        }
+
+        @Override
+        public boolean exists(UserId id) {
+            return true;
+        }
+
+        @Override
+        public Optional<com.runtrack.user.UserSummary> summary(UserId id) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Map<UserId, com.runtrack.user.UserSummary> summaries(Collection<UserId> ids) {
+            return Map.of();
+        }
+
+        @Override
+        public Optional<com.runtrack.shared.access.AudienceScope> accountScope(UserId id) {
+            return Optional.of(com.runtrack.shared.access.AudienceScope.PUBLIC);
+        }
+
+        @Override
+        public Optional<com.runtrack.user.RunnerMass> massOf(UserId id) {
+            return Optional.empty();
         }
     }
 

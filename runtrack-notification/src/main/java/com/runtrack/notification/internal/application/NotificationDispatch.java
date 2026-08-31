@@ -30,6 +30,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Chaque méthode est transactionnelle et idempotente. Le registre rejoue au redémarrage ce qui
  * n'a pas abouti ; rejouer doit être sans effet, et c'est l'identifiant déduit de l'événement qui
  * le garantit.
+ *
+ * <p>Chacune rend les notifications <b>réellement écrites</b> — jamais celles qu'un rejeu a
+ * ignorées. C'est cette liste que l'écouteur passe au push, une fois la transaction refermée : le
+ * §7 interdit qu'un appel à Firebase se retrouve dans une transaction métier.
  */
 @Service
 public class NotificationDispatch {
@@ -55,45 +59,47 @@ public class NotificationDispatch {
      * appel réseau du chemin, et il est mutualisé pour tous les destinataires.
      */
     @Transactional
-    public void runStarted(ActivityId activityId, UserId runnerId, AudienceScope effectiveScope,
-            Instant at) {
+    public List<Notification> runStarted(ActivityId activityId, UserId runnerId,
+            AudienceScope effectiveScope, Instant at) {
 
-        broadcast(NotificationType.FRIEND_STARTED_ACTIVITY, runnerId, effectiveScope,
+        return broadcast(NotificationType.FRIEND_STARTED_ACTIVITY, runnerId, effectiveScope,
                 DeepLink.liveTracking(activityId), activityId.toString(), at);
     }
 
     @Transactional
-    public void runFinished(ActivityId activityId, UserId runnerId, AudienceScope effectiveScope,
-            Instant at) {
+    public List<Notification> runFinished(ActivityId activityId, UserId runnerId,
+            AudienceScope effectiveScope, Instant at) {
 
-        broadcast(NotificationType.FRIEND_FINISHED_ACTIVITY, runnerId, effectiveScope,
+        return broadcast(NotificationType.FRIEND_FINISHED_ACTIVITY, runnerId, effectiveScope,
                 DeepLink.activity(activityId), activityId.toString(), at);
     }
 
     /** Un abonnement immédiat sur un compte ouvert, ou une demande qui vient d'être acceptée. */
     @Transactional
-    public void followAccepted(UserId followerId, UserId followeeId, Instant at) {
+    public List<Notification> followAccepted(UserId followerId, UserId followeeId, Instant at) {
         // Deux notifications, deux destinataires, deux sens : celui qu'on suit apprend qu'il a un
         // abonné de plus, celui qui suivait apprend qu'on a dit oui.
-        notifyOne(NotificationType.NEW_FOLLOWER, followeeId, followerId,
-                DeepLink.profile(followerId), followerId.toString(), at);
-        notifyOne(NotificationType.FOLLOW_ACCEPTED, followerId, followeeId,
-                DeepLink.profile(followeeId), followeeId.toString(), at);
+        var written = new java.util.ArrayList<Notification>();
+        written.addAll(notifyOne(NotificationType.NEW_FOLLOWER, followeeId, followerId,
+                DeepLink.profile(followerId), followerId.toString(), at));
+        written.addAll(notifyOne(NotificationType.FOLLOW_ACCEPTED, followerId, followeeId,
+                DeepLink.profile(followeeId), followeeId.toString(), at));
+        return List.copyOf(written);
     }
 
     @Transactional
-    public void followRequested(UserId followerId, UserId followeeId, Instant at) {
-        notifyOne(NotificationType.FOLLOW_REQUEST, followeeId, followerId,
+    public List<Notification> followRequested(UserId followerId, UserId followeeId, Instant at) {
+        return notifyOne(NotificationType.FOLLOW_REQUEST, followeeId, followerId,
                 DeepLink.followRequests(), followerId.toString(), at);
     }
 
-    private void broadcast(NotificationType type, UserId actorId, AudienceScope effectiveScope,
-            String deepLink, String subject, Instant at) {
+    private List<Notification> broadcast(NotificationType type, UserId actorId,
+            AudienceScope effectiveScope, String deepLink, String subject, Instant at) {
 
         Set<UserId> audience = NotificationAudience.forStartedActivity(
                 effectiveScope, social.acceptedFollowerIds(actorId));
         if (audience.isEmpty()) {
-            return;
+            return List.of();
         }
         Map<UserId, NotificationPreferences> chosen = preferences.findAll(audience);
 
@@ -106,17 +112,20 @@ public class NotificationDispatch {
                 .toList());
 
         broadcaster.deliver(written);
+        return written;
     }
 
-    private void notifyOne(NotificationType type, UserId recipientId, UserId actorId,
+    private List<Notification> notifyOne(NotificationType type, UserId recipientId, UserId actorId,
             String deepLink, String subject, Instant at) {
 
         if (!wants(preferences.findAll(Set.of(recipientId)), recipientId, type)) {
-            return;
+            return List.of();
         }
-        broadcaster.deliver(notifications.appendAll(List.of(Notification.unread(
+        List<Notification> written = notifications.appendAll(List.of(Notification.unread(
                 NotificationId.deducedFrom(type, recipientId, subject, at),
-                recipientId, type, actorId, deepLink, at))));
+                recipientId, type, actorId, deepLink, at)));
+        broadcaster.deliver(written);
+        return written;
     }
 
     /** Sans préférences enregistrées, tout passe : voir {@link NotificationPreferences}. */

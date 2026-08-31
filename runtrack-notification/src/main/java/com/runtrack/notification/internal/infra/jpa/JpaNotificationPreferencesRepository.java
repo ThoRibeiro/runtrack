@@ -3,8 +3,10 @@ package com.runtrack.notification.internal.infra.jpa;
 import com.runtrack.notification.internal.application.port.NotificationPreferencesRepository;
 import com.runtrack.notification.internal.domain.inbox.NotificationPreferences;
 import com.runtrack.notification.internal.domain.inbox.NotificationType;
+import com.runtrack.notification.internal.domain.push.QuietHours;
 import com.runtrack.notification.internal.infra.jpa.entity.NotificationPreferencesEntity;
 import com.runtrack.shared.id.UserId;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -55,16 +57,38 @@ class JpaNotificationPreferencesRepository implements NotificationPreferencesRep
                 .map(NotificationType::name)
                 .collect(Collectors.joining(","));
 
-        entities.save(entities.findById(userId)
-                .map(existing -> {
-                    existing.mute(muted);
-                    return existing;
-                })
-                .orElseGet(() -> new NotificationPreferencesEntity(userId, muted)));
+        NotificationPreferencesEntity entity = entities.findById(userId)
+                .orElseGet(() -> new NotificationPreferencesEntity(userId, muted));
+        entity.mute(muted);
+        preferences.quietHours().ifPresentOrElse(
+                hours -> entity.quietHours(hours.from(), hours.to(), hours.zone().getId()),
+                () -> entity.quietHours(null, null, null));
+        entities.save(entity);
     }
 
     private static NotificationPreferences toDomain(NotificationPreferencesEntity entity) {
-        return new NotificationPreferences(new UserId(entity.getUserId()), parse(entity.getMuted()));
+        return new NotificationPreferences(
+                new UserId(entity.getUserId()), parse(entity.getMuted()), quietHoursOf(entity));
+    }
+
+    /**
+     * Un fuseau devenu inconnu vaut « pas d'heures calmes ».
+     *
+     * <p>La base des fuseaux change — des zones disparaissent — et refuser de lire les préférences
+     * pour autant empêcherait le destinataire de recevoir quoi que ce soit. Le pire cas est un push
+     * pendant la nuit, pas un silence définitif.
+     */
+    private static Optional<QuietHours> quietHoursOf(NotificationPreferencesEntity entity) {
+        if (entity.getQuietFrom() == null || entity.getQuietTo() == null || entity.getQuietZone() == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(new QuietHours(
+                    entity.getQuietFrom(), entity.getQuietTo(), ZoneId.of(entity.getQuietZone())));
+        } catch (RuntimeException unusable) {
+            LOG.debug("Heures calmes illisibles pour {} : {}", entity.getUserId(), unusable.getMessage());
+            return Optional.empty();
+        }
     }
 
     /**

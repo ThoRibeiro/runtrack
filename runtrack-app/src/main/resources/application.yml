@@ -53,6 +53,18 @@ runtrack:
     # EventPublicationRetry : c'est une règle, pas un réglage d'exploitation.
     retry-interval: 1m
 
+  push:
+    # Le choix de l'envoyeur se fait ici, pas dans un `if` : `logging` écrit ce qu'il aurait
+    # envoyé, `fcm` parle à Firebase. Le défaut est volontairement le premier — un poste de
+    # développement sans compte de service doit démarrer.
+    provider: ${RUNTRACK_PUSH_PROVIDER:logging}
+    project-id: ${RUNTRACK_FCM_PROJECT_ID:}
+    # Un chemin, jamais la clé elle-même (§9).
+    credentials-location: ${RUNTRACK_FCM_CREDENTIALS:}
+    # La borne du §7. Elle ne peut pas être dépassée, seulement abaissée.
+    batch-size: 500
+    timeout: 10s
+
   cache:
     enabled: true
     # Part d'aléa ajoutée à chaque TTL : mille clés écrites ensemble ne doivent pas
