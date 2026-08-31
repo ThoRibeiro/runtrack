@@ -29,6 +29,17 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-redis</artifactId>
     </dependency>
+    <!-- Le registre de publications de Modulith sert tous les modules, pas un en
+         particulier : sa supervision et sa reprise vivent donc ici. L'API suffit — c'est
+         l'assemblage qui choisit le support de persistance (starter-jpa). -->
+    <dependency>
+      <groupId>org.springframework.modulith</groupId>
+      <artifactId>spring-modulith-events-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
     <!-- Actuator, et pas micrometer-core seul : c'est lui qui fournit un MeterRegistry.
          Les métriques de cache seraient sinon écrites nulle part. -->
     <dependency>

@@ -28,17 +28,31 @@ spring:
       # Pas de pool de connexions : Lettuce multiplexe les commandes sur une connexion
       # partagée et thread-safe. Un pool n'apporterait rien ici, et exigerait commons-pool2.
 
+  modulith:
+    events:
+      # Le rejeu au redémarrage du §7 : ce qui n'avait pas abouti quand le pod est tombé est
+      # repris au suivant. Sans cette ligne, le registre persiste l'événement mais ne le
+      # ressort jamais — l'outbox serait une archive, pas une garantie de livraison.
+      republish-outstanding-events-on-restart: true
+
   flyway:
     enabled: true
     # Un emplacement par module : chaque table appartient à son module, ses migrations
     # aussi. Les versions sont réparties par centaines pour éviter les collisions.
     locations:
+      - classpath:db/migration/platform
       - classpath:db/migration/user
       - classpath:db/migration/auth
       - classpath:db/migration/social
       - classpath:db/migration/course
+      - classpath:db/migration/notification
 
 runtrack:
+  events:
+    # Cadence de la reprise. Le recul entre deux tentatives, lui, est exponentiel et vit dans
+    # EventPublicationRetry : c'est une règle, pas un réglage d'exploitation.
+    retry-interval: 1m
+
   cache:
     enabled: true
     # Part d'aléa ajoutée à chaque TTL : mille clés écrites ensemble ne doivent pas
@@ -84,7 +98,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,modulith
+        include: health,info,prometheus,modulith,eventpublications
   endpoint:
     health:
       probes:

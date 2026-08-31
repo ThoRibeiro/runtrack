@@ -27,6 +27,7 @@ Le découpage de premier niveau est **fonctionnel**. L'architecture hexagonale s
 | Module | Rôle |
 |---|---|
 | `runtrack-shared` | Identifiants, objets valeur, `Viewer`, erreurs, horloge. Ne dépend de rien. |
+| `runtrack-platform` | Noyau technique partagé : erreurs RFC 9457, cache Dragonfly, canal SSE, supervision de l'outbox. Pas un domaine. |
 | `runtrack-user` | Profil, préférences, suppression RGPD |
 | `runtrack-auth` | Inscription, connexion, JWT, refresh rotatif |
 | `runtrack-social` | Abonnements, demandes, blocages |

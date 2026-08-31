@@ -21,6 +21,13 @@
       <groupId>org.springframework.modulith</groupId>
       <artifactId>spring-modulith-starter-core</artifactId>
     </dependency>
+    <!-- L'Event Publication Registry du §7 : c'est lui l'outbox transactionnelle. Sans ce
+         starter, @ApplicationModuleListener s'exécute bien après commit, mais l'événement
+         n'est ni persisté ni rejoué au redémarrage — c'est-à-dire qu'il se perd. -->
+    <dependency>
+      <groupId>org.springframework.modulith</groupId>
+      <artifactId>spring-modulith-starter-jpa</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-webmvc</artifactId>

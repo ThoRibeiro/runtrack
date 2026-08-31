@@ -5,12 +5,18 @@ spring:
     open-in-view: false
   flyway:
     locations:
+      - classpath:db/migration/platform
       - classpath:db/migration/user
       - classpath:db/migration/auth
       - classpath:db/migration/social
       - classpath:db/migration/course
+      - classpath:db/migration/notification
 
 runtrack:
+  events:
+    # Assez rapide pour qu'un test observe une reprise sans attendre une minute.
+    retry-interval: 500ms
+
   realtime:
     # Un battement rapide : le test doit pouvoir en observer un sans attendre quinze secondes.
     heartbeat: 300ms

@@ -1,6 +1,7 @@
 package com.runtrack.platform.cache;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -36,7 +37,20 @@ public abstract class DragonflyIntegrationTest {
         registry.add("spring.data.redis.port", () -> DRAGONFLY.getMappedPort(RESP_PORT));
     }
 
-    @SpringBootApplication(scanBasePackages = "com.runtrack.platform")
+    /**
+     * Le cache seul, sans le reste de {@code platform}.
+     *
+     * <p>La supervision du registre d'événements est délibérément hors du balayage : elle exige
+     * un registre que seul l'assemblage fournit, et ces tests ne parlent que de cache. Un contexte
+     * de test qui ramasse tout finit par échouer pour des raisons sans rapport avec ce qu'il
+     * vérifie. L'horloge et l'aléa, eux, sont importés explicitement : le cache s'en sert.
+     */
+    @Import(com.runtrack.platform.PlatformConfiguration.class)
+    @SpringBootApplication(
+            scanBasePackages = "com.runtrack.platform.cache",
+            // Depuis que `platform` sait lire le registre d'événements, il embarque JDBC — et
+            // Boot voudrait ouvrir une source de données qu'aucun test de cache n'utilise.
+            exclude = org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration.class)
     static class CacheTestApplication {
     }
 }
