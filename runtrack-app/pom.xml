@@ -53,6 +53,14 @@
       <artifactId>spring-modulith-docs</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- OpenAPI généré depuis les contrôleurs (§8). La 3.x est la ligne alignée sur
+         Spring Boot 4 ; la 2.x cible Boot 3. Portée normale : la description est servie
+         par l'application, pas produite par les tests. -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>3.0.2</version>
+    </dependency>
     <dependency>
       <groupId>com.tngtech.archunit</groupId>
       <artifactId>archunit-junit5</artifactId>

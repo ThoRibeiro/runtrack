@@ -1,0 +1,206 @@
+### RunTrack — collection de requêtes prête à l'emploi (§8)
+#
+# S'ouvre telle quelle dans IntelliJ (HTTP Client) ou VS Code (extension REST Client).
+# Le parcours se suit de haut en bas : chaque bloc réutilise ce que le précédent a produit.
+#
+# La documentation interactive est ailleurs, et complète celle-ci :
+#   http://localhost:8080/swagger-ui.html
+#
+# Démarrer les dépendances avant : `docker compose up -d`.
+
+@host = http://localhost:8080
+@api = {{host}}/api/v1
+
+### 1 — Créer un compte
+# @name signup
+POST {{api}}/auth/signup
+Content-Type: application/json
+
+{
+  "handle": "marie",
+  "email": "marie@example.com",
+  "displayName": "Marie",
+  "password": "correcthorsebattery"
+}
+
+### 2 — Se connecter
+# Le jeton d'accès vaut 15 minutes ; le refresh est rotatif et se stocke haché (§9).
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "marie@example.com",
+  "password": "correcthorsebattery"
+}
+
+@token = {{login.response.body.accessToken}}
+
+### 3 — Démarrer une course
+# `deviceTime` sert à mesurer la dérive de l'horloge du téléphone, une fois pour toute la course.
+# @name start
+POST {{api}}/activities
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "type": "RUN",
+  "title": "Sortie du matin",
+  "visibility": "FOLLOWERS",
+  "deviceTime": "2026-08-31T07:00:00Z"
+}
+
+@runId = {{start.response.body.id}}
+
+### 4 — Envoyer un lot de points
+# `Idempotency-Key` a une portée : cette course. Même clé + même corps rejoue la réponse
+# mémorisée ; même clé + corps différent répond 409 IDEMPOTENCY_KEY_REUSED (§4).
+# Les horodatages doivent tomber entre le départ et l'heure serveur + 60 s, sinon le filtre
+# les écarte — c'est voulu, et c'est ce qui rend un client qui triche sans effet.
+POST {{api}}/activities/{{runId}}/points
+Authorization: Bearer {{token}}
+Idempotency-Key: tampon-1
+Content-Type: application/json
+
+{
+  "points": [
+    {"sequenceNumber": 1, "latitude": 50.62920, "longitude": 3.05730, "elevation": 20,
+     "recordedAt": "2026-08-31T07:00:01Z", "accuracyMeters": 5, "heartRate": 138},
+    {"sequenceNumber": 2, "latitude": 50.62920, "longitude": 3.05734, "elevation": 21,
+     "recordedAt": "2026-08-31T07:00:02Z", "accuracyMeters": 5, "heartRate": 141}
+  ]
+}
+
+### 5 — Suivre la course en direct (SSE)
+# Reprise après coupure : renvoyer le dernier `id:` reçu dans `Last-Event-ID`.
+GET {{api}}/activities/{{runId}}/stream
+Authorization: Bearer {{token}}
+Accept: text/event-stream
+
+### 6 — Mettre en pause, reprendre, terminer
+POST {{api}}/activities/{{runId}}/pause
+Authorization: Bearer {{token}}
+
+###
+POST {{api}}/activities/{{runId}}/resume
+Authorization: Bearer {{token}}
+
+### Terminer : c'est ici que splits, polyline et LINESTRING sont produits (§4).
+POST {{api}}/activities/{{runId}}/finish
+Authorization: Bearer {{token}}
+
+### 7 — La trace historisée et ses tronçons
+GET {{api}}/activities/{{runId}}/track
+Authorization: Bearer {{token}}
+
+###
+GET {{api}}/activities/{{runId}}/splits
+Authorization: Bearer {{token}}
+
+### 8 — Partager la course
+# Le jeton n'est rendu qu'ici : il est stocké haché, et n'existe ensuite nulle part ailleurs.
+# @name share
+POST {{api}}/activities/{{runId}}/share-links
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"validForHours": 24}
+
+@shareToken = {{share.response.body.token}}
+
+### Ouvrir le lien — sans aucune authentification, et pour cette course seulement (§5.4)
+GET {{api}}/shared/{{shareToken}}
+
+### Le direct passe par le même chemin
+GET {{api}}/shared/{{shareToken}}/stream
+Accept: text/event-stream
+
+### 9 — Aimer et commenter
+POST {{api}}/activities/{{runId}}/likes
+Authorization: Bearer {{token}}
+
+###
+GET {{api}}/activities/{{runId}}/likes
+Authorization: Bearer {{token}}
+
+### Un commentaire est modifiable 30 minutes, puis figé (§3).
+# @name comment
+POST {{api}}/activities/{{runId}}/comments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"body": "Beau rythme sur la fin"}
+
+@commentId = {{comment.response.body.id}}
+
+### Répondre — un seul niveau de profondeur
+POST {{api}}/activities/{{runId}}/comments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"body": "Merci !", "parentId": "{{commentId}}"}
+
+###
+PATCH {{api}}/comments/{{commentId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"body": "Beau rythme sur la fin !"}
+
+### 10 — Le fil
+# Fan-out à la lecture : les abonnements viennent du cache, la projection est filtrée dessus.
+GET {{api}}/feed
+Authorization: Bearer {{token}}
+
+### Page suivante : renvoyer le `nextCursor` reçu
+GET {{api}}/feed?cursor=2026-08-31T07:00:00Z&limit=20
+Authorization: Bearer {{token}}
+
+### 11 — Notifications
+GET {{api}}/notifications?unreadOnly=true
+Authorization: Bearer {{token}}
+
+###
+GET {{api}}/notifications/unread-count
+Authorization: Bearer {{token}}
+
+### Le flux SSE de la boîte : la pastille s'allume sans recharger
+GET {{api}}/notifications/stream
+Authorization: Bearer {{token}}
+Accept: text/event-stream
+
+###
+POST {{api}}/notifications/read-all
+Authorization: Bearer {{token}}
+
+### 12 — Préférences et heures calmes
+# Les natures coupées, et une plage de silence exprimée dans le fuseau du destinataire :
+# « pas avant 7 h » n'a de sens que là où il se trouve.
+PATCH {{api}}/users/me/notification-preferences
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "muted": ["ACTIVITY_LIKED"],
+  "quietHours": {"from": "22:00", "to": "07:00", "zone": "Europe/Paris"}
+}
+
+### 13 — Déclarer un appareil pour le push
+POST {{api}}/users/me/devices
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"token": "jeton-fcm-du-telephone", "platform": "ANDROID"}
+
+###
+GET {{api}}/users/me/devices
+Authorization: Bearer {{token}}
+
+### 14 — Exploitation
+GET {{host}}/actuator/health
+
+### L'état de l'outbox : `deadLettered` au-dessus de zéro appelle quelqu'un.
+GET {{host}}/actuator/eventpublications
+
+### La carte des modules, générée par Spring Modulith
+GET {{host}}/actuator/modulith

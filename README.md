@@ -95,6 +95,15 @@ relecteur habitué à `wishlist-api` s'y retrouve sans traduction. Deux écarts 
 - La documentation Modulith, régénérée à chaque build dans
   `runtrack-app/target/spring-modulith-docs/`.
 
+## API
+
+- **Documentation interactive** : <http://localhost:8080/swagger-ui.html>, générée par
+  springdoc depuis les contrôleurs — jamais écrite à la main, donc jamais en retard sur le
+  code. Les groupes suivent les modules : on ouvre celui qu'on cherche.
+- **Description brute** : `/v3/api-docs/9-tout`, ou `/v3/api-docs/<groupe>` pour un module.
+- **Collection prête à l'emploi** : `docs/api/runtrack.http` — s'ouvre dans IntelliJ ou dans
+  VS Code, et se suit de haut en bas : créer un compte, courir, partager, commenter.
+
 ## Documentation
 
 - `docs/decisions-lot-1.md` — structure, découpage Maven, seuil de couverture.

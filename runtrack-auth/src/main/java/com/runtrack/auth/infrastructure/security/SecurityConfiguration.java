@@ -67,6 +67,10 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v1/activities/*/comments").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/activities").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
+                        // La description de l'API est un contrat, pas un secret : ce qu'elle
+                        // décrit reste protégé par les règles ci-dessus.
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(handling -> handling.authenticationEntryPoint(entryPoint))
                 .addFilterBefore(viewerFilter,

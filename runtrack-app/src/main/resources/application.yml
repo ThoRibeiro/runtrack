@@ -106,6 +106,20 @@ runtrack:
       access-token-lifetime: 15m
       issuer: runtrack
 
+springdoc:
+  # /swagger-ui.html redirige vers cette page ; la fixer évite qu'une montée de version
+  # déplace l'URL que tout le monde a mise en favori.
+  swagger-ui:
+    path: /swagger-ui.html
+    # Les groupes suivent les modules : on ouvre celui qu'on cherche, pas les cent endpoints.
+    display-request-duration: true
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs
+  # La description est publique : c'est un contrat, pas un secret. Ce qu'elle documente reste
+  # protégé par la chaîne de sécurité.
+  show-actuator: false
+
 server:
   port: 8080
 
