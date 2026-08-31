@@ -47,7 +47,9 @@ class ActivityQueriesTest {
         relations = new CourseDoubles.Relations();
         users = new CourseDoubles.Users();
         ApplicationEventPublisher publisher = event -> { };
-        lifecycle = new ActivityLifecycle(activities, stats, relations, publisher, CLOCK, new java.util.Random(7));
+        lifecycle = new ActivityLifecycle(
+                activities, stats, relations, publisher, new CourseDoubles.LivePublisher(),
+                CLOCK, new java.util.Random(7));
         queries = new ActivityQueries(activities, stats, relations, users, CLOCK);
     }
 

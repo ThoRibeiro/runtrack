@@ -58,6 +58,9 @@ public class SecurityConfiguration {
                         // ActivityAccessPolicy : une course publique doit rester lisible sans
                         // compte, et une course fermée répond « introuvable », pas 401.
                         .requestMatchers(HttpMethod.GET, "/api/v1/activities/*").permitAll()
+                        // Le direct suit la même règle que la lecture : c'est ActivityAccessPolicy
+                        // qui tranche, et une course fermée répond « introuvable » ici aussi.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/activities/*/stream").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/activities").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .anyRequest().authenticated())

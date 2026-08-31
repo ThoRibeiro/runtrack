@@ -3,10 +3,12 @@ package com.runtrack.course.internal.application.fixture;
 import com.runtrack.course.internal.application.port.ActivityRepository;
 import com.runtrack.course.internal.application.port.ActivityStatsStore;
 import com.runtrack.course.internal.application.port.IdempotencyStore;
+import com.runtrack.course.internal.application.port.LiveActivityPublisher;
 import com.runtrack.course.internal.application.port.TrackPointRepository;
 import com.runtrack.course.internal.application.port.ViewerRelationResolver;
 import com.runtrack.course.internal.domain.access.ViewerRelation;
 import com.runtrack.course.internal.domain.activity.Activity;
+import com.runtrack.course.internal.domain.live.LiveEvent;
 import com.runtrack.course.internal.domain.stats.StatsAccumulator;
 import com.runtrack.course.internal.domain.track.TrackPoint;
 import com.runtrack.shared.access.AudienceScope;
@@ -136,6 +138,12 @@ public final class CourseDoubles {
         }
 
         @Override
+        public List<TrackPoint> findRecent(ActivityId activityId, int limit) {
+            List<TrackPoint> all = findAll(activityId);
+            return all.subList(Math.max(0, all.size() - limit), all.size());
+        }
+
+        @Override
         public List<TrackPoint> findAll(ActivityId activityId) {
             return List.copyOf(track(activityId));
         }
@@ -174,6 +182,31 @@ public final class CourseDoubles {
 
         public int writes() {
             return writes;
+        }
+    }
+
+    /** Retient ce qui est parti en direct, pour que les tests puissent le regarder. */
+    public static final class LivePublisher implements LiveActivityPublisher {
+
+        private final List<LiveEvent> broadcast = new ArrayList<>();
+        private final List<ActivityId> closed = new ArrayList<>();
+
+        @Override
+        public void publish(ActivityId activityId, List<LiveEvent> events) {
+            broadcast.addAll(events);
+        }
+
+        @Override
+        public void closeStream(ActivityId activityId) {
+            closed.add(activityId);
+        }
+
+        public List<LiveEvent> broadcast() {
+            return List.copyOf(broadcast);
+        }
+
+        public List<ActivityId> closed() {
+            return List.copyOf(closed);
         }
     }
 

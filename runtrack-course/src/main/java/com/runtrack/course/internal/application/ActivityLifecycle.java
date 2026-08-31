@@ -7,9 +7,11 @@ import com.runtrack.course.event.ActivityResumed;
 import com.runtrack.course.event.ActivityStarted;
 import com.runtrack.course.internal.application.port.ActivityRepository;
 import com.runtrack.course.internal.application.port.ActivityStatsStore;
+import com.runtrack.course.internal.application.port.LiveActivityPublisher;
 import com.runtrack.course.internal.application.port.ViewerRelationResolver;
 import com.runtrack.course.internal.domain.activity.Activity;
 import com.runtrack.course.internal.domain.activity.ActivityType;
+import com.runtrack.course.internal.domain.live.LiveEvent;
 import com.runtrack.course.internal.domain.stats.StatsAccumulator;
 import com.runtrack.course.internal.domain.track.DeviceClockSkew;
 import com.runtrack.shared.access.AudienceScope;
@@ -20,6 +22,7 @@ import com.runtrack.shared.id.ActivityId;
 import com.runtrack.shared.id.UserId;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.random.RandomGenerator;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -40,16 +43,18 @@ public class ActivityLifecycle {
     private final ActivityStatsStore stats;
     private final ViewerRelationResolver relations;
     private final ApplicationEventPublisher events;
+    private final LiveActivityPublisher live;
     private final Clock clock;
     private final RandomGenerator random;
 
     public ActivityLifecycle(ActivityRepository activities, ActivityStatsStore stats,
             ViewerRelationResolver relations, ApplicationEventPublisher events,
-            Clock clock, RandomGenerator random) {
+            LiveActivityPublisher live, Clock clock, RandomGenerator random) {
         this.activities = activities;
         this.stats = stats;
         this.relations = relations;
         this.events = events;
+        this.live = live;
         this.clock = clock;
         this.random = random;
     }
@@ -79,6 +84,7 @@ public class ActivityLifecycle {
         activity.pause(now);
         activities.save(activity);
         events.publishEvent(new ActivityPaused(id, now, correlationId()));
+        broadcastStatus(activity, now);
     }
 
     @Transactional
@@ -88,6 +94,7 @@ public class ActivityLifecycle {
         activity.resume(now);
         activities.save(activity);
         events.publishEvent(new ActivityResumed(id, now, correlationId()));
+        broadcastStatus(activity, now);
     }
 
     @Transactional
@@ -100,6 +107,7 @@ public class ActivityLifecycle {
         StatsAccumulator accumulator = stats.find(id).orElseGet(StatsAccumulator::empty);
         events.publishEvent(new ActivityFinished(id, ownerId, effectiveScopeOf(activity).name(),
                 accumulator.distance().meters(), accumulator.movingTime().toSeconds(), now, correlationId()));
+        endBroadcast(activity, now);
     }
 
     @Transactional
@@ -109,6 +117,7 @@ public class ActivityLifecycle {
         activity.discard(now);
         activities.save(activity);
         events.publishEvent(new ActivityDiscarded(id, ownerId, now, correlationId()));
+        endBroadcast(activity, now);
     }
 
     @Transactional
@@ -130,6 +139,22 @@ public class ActivityLifecycle {
         requireOwned(ownerId, id);
         stats.delete(id);
         activities.delete(id);
+    }
+
+    private void broadcastStatus(Activity activity, Instant now) {
+        live.publish(activity.id(),
+                List.of(new LiveEvent.Status(activity.status().getClass().getSimpleName(), now)));
+    }
+
+    /**
+     * Annonce la fin, puis ferme le direct — dans cet ordre.
+     *
+     * <p>Fermer d'abord priverait les spectateurs connectés de la seule information qui les
+     * intéresse encore : que la course est terminée.
+     */
+    private void endBroadcast(Activity activity, Instant now) {
+        broadcastStatus(activity, now);
+        live.closeStream(activity.id());
     }
 
     /**

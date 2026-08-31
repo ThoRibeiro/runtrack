@@ -52,6 +52,14 @@ class JdbcTrackPointRepository implements TrackPointRepository {
             FROM track_points WHERE activity_id = ? ORDER BY sequence_number DESC LIMIT 1
             """;
 
+    private static final String SELECT_RECENT = """
+            SELECT * FROM (
+                SELECT sequence_number, latitude, longitude, elevation, recorded_at,
+                       accuracy_meters, heart_rate, cadence
+                FROM track_points WHERE activity_id = ? ORDER BY sequence_number DESC LIMIT ?
+            ) recent ORDER BY sequence_number
+            """;
+
     private static final RowMapper<TrackPoint> MAPPER = (rs, rowNumber) -> new TrackPoint(
             rs.getInt("sequence_number"),
             new GeoPoint(rs.getDouble("latitude"), rs.getDouble("longitude")),
@@ -102,6 +110,12 @@ class JdbcTrackPointRepository implements TrackPointRepository {
     @Override
     public Optional<TrackPoint> findLast(ActivityId activityId) {
         return jdbc.query(SELECT_LAST, MAPPER, activityId.value()).stream().findFirst();
+    }
+
+    @Override
+    public List<TrackPoint> findRecent(ActivityId activityId, int limit) {
+        // Les derniers en base, remis à l'endroit : le client trace du plus ancien au plus récent.
+        return jdbc.query(SELECT_RECENT, MAPPER, activityId.value(), limit);
     }
 
     @Override

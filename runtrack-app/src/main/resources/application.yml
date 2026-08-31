@@ -51,6 +51,22 @@ runtrack:
     share-token-ttl: 15m
     feed-head-ttl: 30s
 
+  realtime:
+    # Longueur du journal d'une course, en nombre d'entrées. C'est un garde-fou mémoire, pas
+    # un quota : ce qui dépasse a de toute façon été reçu ou remplacé par l'instantané.
+    stream-max-length: 1000
+    # Après la fin d'une course, le journal survit le temps qu'un client coupé se reconnecte
+    # avec son Last-Event-ID et reçoive la fin de ce qu'il regardait.
+    stream-retention: 5m
+    # Sans battement, un proxy ferme une connexion SSE silencieuse — ce qui arrive dès qu'un
+    # coureur s'arrête à un feu.
+    heartbeat: 15s
+    emitter-timeout: 4h
+    # Doit rester nettement au-dessus de LiveActivityStream.SNAPSHOT_POINTS : l'instantané
+    # entre dans cette file avant le premier événement en direct.
+    subscriber-queue-capacity: 512
+    poll-timeout: 2s
+
   auth:
     jwt:
       # Chemins, jamais de clé en dur. Sans eux, une paire éphémère est tirée au démarrage

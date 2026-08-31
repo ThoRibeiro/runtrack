@@ -22,6 +22,14 @@ public interface TrackPointRepository {
 
     Optional<TrackPoint> findLast(ActivityId activityId);
 
+    /**
+     * Les {@code limit} derniers points, dans l'ordre chronologique.
+     *
+     * <p>Sert l'instantané du direct : un spectateur qui arrive à mi-course doit voir la fin
+     * du tracé, pas une carte vide, et pas non plus les dix mille points d'une sortie longue.
+     */
+    List<TrackPoint> findRecent(ActivityId activityId, int limit);
+
     List<TrackPoint> findAll(ActivityId activityId);
 
     void deleteAll(ActivityId activityId);

@@ -1,19 +1,20 @@
 package com.runtrack.api;
 
+import static com.runtrack.api.CourseFixtures.batch;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.Instant;
+import com.runtrack.api.CourseFixtures.Account;
+import com.runtrack.api.CourseFixtures.Run;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -28,101 +29,25 @@ import tools.jackson.databind.ObjectMapper;
  */
 class PointIngestionApiIT extends ApiIntegrationTest {
 
-    private static final AtomicInteger COUNTER = new AtomicInteger();
-    private static final double LILLE_LATITUDE = 50.6292;
-    private static final double LILLE_LONGITUDE = 3.0573;
-
-    /** Trois mètres par seconde : une allure de coureur, que le filtre de vraisemblance laisse passer. */
-    private static final double METERS_PER_SECOND = 3;
-
     @Autowired
     private MockMvc mvc;
 
     @Autowired
     private ObjectMapper json;
 
-    private record Account(String id, String token) {
-    }
+    private CourseFixtures fixtures;
 
-    private Account newAccount() throws Exception {
-        String handle = "p" + COUNTER.incrementAndGet() + System.nanoTime() % 100_000;
-        MvcResult created = mvc.perform(post("/api/v1/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"handle":"%s","email":"%s@example.com","displayName":"Coureur",
-                                 "password":"correcthorsebattery"}
-                                """.formatted(handle, handle)))
-                .andExpect(status().isCreated()).andReturn();
-        String id = json.readTree(created.getResponse().getContentAsString()).get("userId").asText();
-
-        MvcResult login = mvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"email":"%s@example.com","password":"correcthorsebattery"}
-                                """.formatted(handle)))
-                .andExpect(status().isOk()).andReturn();
-        return new Account(id, json.readTree(login.getResponse().getContentAsString())
-                .get("accessToken").asText());
-    }
-
-    private String bearer(Account account) {
-        return "Bearer " + account.token();
-    }
-
-    private record Run(String id, Instant startedAt) {
-    }
-
-    /**
-     * Le départ réel de la course est relu dans la réponse, et les points s'y accrochent.
-     *
-     * <p>Une date écrite en dur ne marcherait pas : le filtre écarte ce qui précède le départ
-     * comme ce qui dépasse l'heure serveur, et ces deux bornes bougent à chaque exécution.
-     */
-    private Run startRun(Account owner) throws Exception {
-        MvcResult started = mvc.perform(post("/api/v1/activities")
-                        .header("Authorization", bearer(owner))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"type":"RUN","title":"Sortie du matin","visibility":"PUBLIC"}
-                                """))
-                .andExpect(status().isCreated()).andReturn();
-        var body = json.readTree(started.getResponse().getContentAsString());
-        return new Run(body.get("id").asText(), Instant.parse(body.get("startedAt").asText()));
-    }
-
-    /** Trois mètres par seconde vers l'est, à partir du départ de la course. */
-    private static String batch(Run run, int fromSequence, int toSequence) {
-        double degreesPerMeter = 1 / (111_320d * Math.cos(Math.toRadians(LILLE_LATITUDE)));
-        List<String> points = IntStream.rangeClosed(fromSequence, toSequence)
-                .mapToObj(index -> """
-                        {"sequenceNumber":%d,"latitude":%s,"longitude":%s,"elevation":20,
-                         "recordedAt":"%s","accuracyMeters":5}
-                        """.formatted(
-                        index,
-                        LILLE_LATITUDE,
-                        LILLE_LONGITUDE + METERS_PER_SECOND * index * degreesPerMeter,
-                        run.startedAt().plusSeconds(index)))
-                .toList();
-        return "{\"points\":[" + String.join(",", points) + "]}";
-    }
-
-    private MvcResult ingest(Account owner, Run run, String body, String key) throws Exception {
-        var request = post("/api/v1/activities/" + run.id() + "/points")
-                .header("Authorization", bearer(owner))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(body);
-        if (key != null) {
-            request = request.header("Idempotency-Key", key);
-        }
-        return mvc.perform(request).andReturn();
+    @BeforeEach
+    void setUpFixtures() {
+        fixtures = new CourseFixtures(mvc, json);
     }
 
     @Test
     void aBatchOfPointsAdvancesTheStats() throws Exception {
-        Account marie = newAccount();
-        Run run = startRun(marie);
+        Account marie = fixtures.newAccount();
+        Run run = fixtures.startRun(marie);
 
-        MvcResult ingested = ingest(marie, run, batch(run, 1, 5), null);
+        MvcResult ingested = fixtures.ingest(marie, run, 1, 5);
 
         assertThat(ingested.getResponse().getStatus()).isEqualTo(200);
         var body = json.readTree(ingested.getResponse().getContentAsString());
@@ -130,7 +55,7 @@ class PointIngestionApiIT extends ApiIntegrationTest {
         assertThat(body.get("lastAcceptedSequence").asInt()).isEqualTo(5);
         assertThat(body.get("stats").get("distanceMeters").asDouble()).isGreaterThan(10);
 
-        mvc.perform(get("/api/v1/activities/" + run.id()).header("Authorization", bearer(marie)))
+        mvc.perform(get("/api/v1/activities/" + run.id()).header("Authorization", marie.bearer()))
                 .andExpect(jsonPath("$.stats.distanceMeters").value(
                         body.get("stats").get("distanceMeters").asDouble()));
     }
@@ -138,12 +63,12 @@ class PointIngestionApiIT extends ApiIntegrationTest {
     /** Sans clé, la dédup par {@code sequenceNumber} suffit à protéger les statistiques. */
     @Test
     void replayingWithoutAKeyChangesNoStatistic() throws Exception {
-        Account marie = newAccount();
-        Run run = startRun(marie);
+        Account marie = fixtures.newAccount();
+        Run run = fixtures.startRun(marie);
 
-        double first = json.readTree(ingest(marie, run, batch(run, 1, 5), null)
+        double first = json.readTree(fixtures.ingest(marie, run, 1, 5)
                 .getResponse().getContentAsString()).get("stats").get("distanceMeters").asDouble();
-        var replay = json.readTree(ingest(marie, run, batch(run, 1, 5), null)
+        var replay = json.readTree(fixtures.ingest(marie, run, 1, 5)
                 .getResponse().getContentAsString());
 
         assertThat(replay.get("acceptedCount").asInt()).isZero();
@@ -153,11 +78,13 @@ class PointIngestionApiIT extends ApiIntegrationTest {
 
     @Test
     void theSameKeyOnTheSameBatchReplaysTheStoredResponse() throws Exception {
-        Account marie = newAccount();
-        Run run = startRun(marie);
+        Account marie = fixtures.newAccount();
+        Run run = fixtures.startRun(marie);
 
-        String first = ingest(marie, run, batch(run, 1, 5), "buffer-1").getResponse().getContentAsString();
-        String replay = ingest(marie, run, batch(run, 1, 5), "buffer-1").getResponse().getContentAsString();
+        String first = fixtures.ingest(marie, run, batch(run, 1, 5), "buffer-1")
+                .getResponse().getContentAsString();
+        String replay = fixtures.ingest(marie, run, batch(run, 1, 5), "buffer-1")
+                .getResponse().getContentAsString();
 
         assertThat(replay).isEqualTo(first);
         assertThat(json.readTree(replay).get("acceptedCount").asInt()).isEqualTo(5);
@@ -165,12 +92,12 @@ class PointIngestionApiIT extends ApiIntegrationTest {
 
     @Test
     void theSameKeyOnAnotherBatchIsRefused() throws Exception {
-        Account marie = newAccount();
-        Run run = startRun(marie);
-        ingest(marie, run, batch(run, 1, 5), "buffer-1");
+        Account marie = fixtures.newAccount();
+        Run run = fixtures.startRun(marie);
+        fixtures.ingest(marie, run, batch(run, 1, 5), "buffer-1");
 
         mvc.perform(post("/api/v1/activities/" + run.id() + "/points")
-                        .header("Authorization", bearer(marie))
+                        .header("Authorization", marie.bearer())
                         .header("Idempotency-Key", "buffer-1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(batch(run, 6, 9)))
@@ -184,13 +111,11 @@ class PointIngestionApiIT extends ApiIntegrationTest {
      */
     @Test
     void twoConcurrentBatchesBothLandWithoutLosingAPoint() throws Exception {
-        Account marie = newAccount();
-        Run run = startRun(marie);
+        Account marie = fixtures.newAccount();
+        Run run = fixtures.startRun(marie);
 
-        Callable<Integer> firstHalf = () -> ingest(marie, run, batch(run, 1, 20), null)
-                .getResponse().getStatus();
-        Callable<Integer> secondHalf = () -> ingest(marie, run, batch(run, 21, 40), null)
-                .getResponse().getStatus();
+        Callable<Integer> firstHalf = () -> fixtures.ingest(marie, run, 1, 20).getResponse().getStatus();
+        Callable<Integer> secondHalf = () -> fixtures.ingest(marie, run, 21, 40).getResponse().getStatus();
 
         try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
             List<Future<Integer>> statuses = pool.invokeAll(List.of(firstHalf, secondHalf));
@@ -199,7 +124,7 @@ class PointIngestionApiIT extends ApiIntegrationTest {
             }
         }
 
-        var afterwards = json.readTree(ingest(marie, run, batch(run, 1, 40), null)
+        var afterwards = json.readTree(fixtures.ingest(marie, run, 1, 40)
                 .getResponse().getContentAsString());
         // Tout a déjà été appliqué : un rejeu complet ne trouve plus rien de neuf.
         assertThat(afterwards.get("acceptedCount").asInt()).isZero();
@@ -208,12 +133,12 @@ class PointIngestionApiIT extends ApiIntegrationTest {
 
     @Test
     void anotherRunnerCannotFeedSomeoneElsesRun() throws Exception {
-        Account marie = newAccount();
-        Account paul = newAccount();
-        Run run = startRun(marie);
+        Account marie = fixtures.newAccount();
+        Account paul = fixtures.newAccount();
+        Run run = fixtures.startRun(marie);
 
         mvc.perform(post("/api/v1/activities/" + run.id() + "/points")
-                        .header("Authorization", bearer(paul))
+                        .header("Authorization", paul.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(batch(run, 1, 3)))
                 .andExpect(status().isNotFound())
@@ -222,13 +147,14 @@ class PointIngestionApiIT extends ApiIntegrationTest {
 
     @Test
     void aFinishedRunRefusesPoints() throws Exception {
-        Account marie = newAccount();
-        Run run = startRun(marie);
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/finish").header("Authorization", bearer(marie)))
+        Account marie = fixtures.newAccount();
+        Run run = fixtures.startRun(marie);
+        mvc.perform(post("/api/v1/activities/" + run.id() + "/finish")
+                        .header("Authorization", marie.bearer()))
                 .andExpect(status().isNoContent());
 
         mvc.perform(post("/api/v1/activities/" + run.id() + "/points")
-                        .header("Authorization", bearer(marie))
+                        .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(batch(run, 1, 3)))
                 .andExpect(status().isConflict())
@@ -237,8 +163,8 @@ class PointIngestionApiIT extends ApiIntegrationTest {
 
     @Test
     void ingestingWithoutBeingLoggedInIsRefused() throws Exception {
-        Account marie = newAccount();
-        Run run = startRun(marie);
+        Account marie = fixtures.newAccount();
+        Run run = fixtures.startRun(marie);
 
         mvc.perform(post("/api/v1/activities/" + run.id() + "/points")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -248,11 +174,11 @@ class PointIngestionApiIT extends ApiIntegrationTest {
 
     @Test
     void anEmptyBatchIsARequestError() throws Exception {
-        Account marie = newAccount();
-        Run run = startRun(marie);
+        Account marie = fixtures.newAccount();
+        Run run = fixtures.startRun(marie);
 
         mvc.perform(post("/api/v1/activities/" + run.id() + "/points")
-                        .header("Authorization", bearer(marie))
+                        .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"points\":[]}"))
                 .andExpect(status().isUnprocessableEntity())

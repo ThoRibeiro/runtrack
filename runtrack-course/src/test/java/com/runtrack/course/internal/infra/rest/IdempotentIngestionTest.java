@@ -49,9 +49,11 @@ class IdempotentIngestionTest {
         keys = new CourseDoubles.IdempotencyKeys();
         ApplicationEventPublisher publisher = event -> { };
 
-        lifecycle = new ActivityLifecycle(activities, stats, relations, publisher, AT_START, new Random(7));
+        var live = new CourseDoubles.LivePublisher();
+        lifecycle = new ActivityLifecycle(
+                activities, stats, relations, publisher, live, AT_START, new Random(7));
         var queries = new ActivityQueries(activities, stats, relations, users, AN_HOUR_LATER);
-        var ingestion = new PointIngestion(activities, stats, points, queries, AN_HOUR_LATER);
+        var ingestion = new PointIngestion(activities, stats, points, queries, live, AN_HOUR_LATER);
         idempotent = new IdempotentIngestion(
                 new ResilientPointIngestion(ingestion), keys, new ObjectMapper());
     }

@@ -45,7 +45,7 @@ class ResilientPointIngestionTest {
         private int attempts;
 
         FlakyIngestion(int failures) {
-            super(null, null, null, null, CLOCK);
+            super(null, null, null, null, null, CLOCK);
             this.failures = failures;
         }
 

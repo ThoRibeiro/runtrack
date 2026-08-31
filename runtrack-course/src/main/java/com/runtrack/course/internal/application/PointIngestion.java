@@ -2,8 +2,11 @@ package com.runtrack.course.internal.application;
 
 import com.runtrack.course.internal.application.port.ActivityRepository;
 import com.runtrack.course.internal.application.port.ActivityStatsStore;
+import com.runtrack.course.internal.application.port.LiveActivityPublisher;
 import com.runtrack.course.internal.application.port.TrackPointRepository;
 import com.runtrack.course.internal.domain.activity.Activity;
+import com.runtrack.course.internal.domain.live.LiveEvent;
+import com.runtrack.course.internal.domain.stats.ActivityStats;
 import com.runtrack.course.internal.domain.stats.StatsAccumulator;
 import com.runtrack.course.internal.domain.track.PointRejection;
 import com.runtrack.course.internal.domain.track.TrackPoint;
@@ -46,14 +49,16 @@ public class PointIngestion {
     private final ActivityStatsStore stats;
     private final TrackPointRepository points;
     private final ActivityQueries queries;
+    private final LiveActivityPublisher live;
     private final Clock clock;
 
     public PointIngestion(ActivityRepository activities, ActivityStatsStore stats,
-            TrackPointRepository points, ActivityQueries queries, Clock clock) {
+            TrackPointRepository points, ActivityQueries queries, LiveActivityPublisher live, Clock clock) {
         this.activities = activities;
         this.stats = stats;
         this.points = points;
         this.queries = queries;
+        this.live = live;
         this.clock = clock;
     }
 
@@ -97,11 +102,30 @@ public class PointIngestion {
             stats.save(activityId, accumulator);
         }
 
+        ActivityStats summary = queries.statsOf(activity);
+        if (!accepted.isEmpty()) {
+            live.publish(activityId, broadcastOf(accepted, summary));
+        }
+
         return new IngestionResult(
-                queries.statsOf(activity),
+                summary,
                 accumulator.lastAppliedSequence(),
                 accepted.size(),
                 List.copyOf(rejected));
+    }
+
+    /**
+     * Ce qui part vers les spectateurs : chaque position, puis les statistiques une fois.
+     *
+     * <p>Les statistiques ne sont pas répétées point par point. Elles ne prennent leur valeur
+     * qu'une fois le lot entier appliqué, et en émettre une version intermédiaire par point
+     * ferait clignoter l'écran du spectateur sur des états qui n'ont jamais existé.
+     */
+    private static List<LiveEvent> broadcastOf(List<TrackPoint> accepted, ActivityStats summary) {
+        var broadcast = new ArrayList<LiveEvent>(accepted.size() + 1);
+        accepted.forEach(point -> broadcast.add(LiveEvent.Position.of(point)));
+        broadcast.add(new LiveEvent.Stats(summary));
+        return List.copyOf(broadcast);
     }
 
     /**

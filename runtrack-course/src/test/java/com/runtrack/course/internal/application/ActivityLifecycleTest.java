@@ -11,6 +11,7 @@ import com.runtrack.course.event.ActivityStarted;
 import com.runtrack.course.internal.application.fixture.CourseDoubles;
 import com.runtrack.course.internal.domain.activity.Activity;
 import com.runtrack.course.internal.domain.activity.ActivityType;
+import com.runtrack.course.internal.domain.live.LiveEvent;
 import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.shared.error.ConflictException;
 import com.runtrack.shared.error.NotFoundException;
@@ -36,6 +37,7 @@ class ActivityLifecycleTest {
     private CourseDoubles.Activities activities;
     private CourseDoubles.Stats stats;
     private CourseDoubles.Relations relations;
+    private CourseDoubles.LivePublisher live;
     private List<Object> published;
     private ActivityLifecycle lifecycle;
 
@@ -46,7 +48,8 @@ class ActivityLifecycleTest {
         relations = new CourseDoubles.Relations();
         published = new ArrayList<>();
         ApplicationEventPublisher publisher = published::add;
-        lifecycle = new ActivityLifecycle(activities, stats, relations, publisher,
+        live = new CourseDoubles.LivePublisher();
+        lifecycle = new ActivityLifecycle(activities, stats, relations, publisher, live,
                 Clock.fixed(NOW, ZoneOffset.UTC), new java.util.Random(7));
     }
 
@@ -195,6 +198,48 @@ class ActivityLifecycleTest {
 
             assertThat(activities.size()).isZero();
             assertThat(stats.holds(activity.id())).isFalse();
+        }
+    }
+
+    @Nested
+    class Broadcasting {
+
+        @Test
+        void aPauseAndAResumeAreAnnouncedToSpectators() {
+            Activity activity = startRun();
+
+            lifecycle.pause(MARIE, activity.id());
+            lifecycle.resume(MARIE, activity.id());
+
+            assertThat(live.broadcast())
+                    .extracting(event -> ((LiveEvent.Status) event).status())
+                    .containsExactly("Paused", "Live");
+        }
+
+        /**
+         * L'ordre compte : fermer le direct avant d'annoncer la fin priverait les spectateurs
+         * connectés de la seule information qui les intéresse encore.
+         */
+        @Test
+        void finishingAnnouncesTheEndBeforeClosingTheStream() {
+            Activity activity = startRun();
+
+            lifecycle.finish(MARIE, activity.id());
+
+            assertThat(live.broadcast())
+                    .singleElement()
+                    .extracting(event -> ((LiveEvent.Status) event).status())
+                    .isEqualTo("Finished");
+            assertThat(live.closed()).containsExactly(activity.id());
+        }
+
+        @Test
+        void discardingClosesTheStreamToo() {
+            Activity activity = startRun();
+
+            lifecycle.discard(MARIE, activity.id());
+
+            assertThat(live.closed()).containsExactly(activity.id());
         }
     }
 }

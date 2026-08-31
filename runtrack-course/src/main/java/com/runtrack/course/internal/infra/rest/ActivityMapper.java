@@ -6,13 +6,19 @@ import com.runtrack.course.internal.infra.rest.dto.ActivityDtos;
 import com.runtrack.shared.measure.Elevation;
 import com.runtrack.shared.measure.Pace;
 
-/** Agrégat et statistiques vers DTO, à la main. */
-final class ActivityMapper {
+/**
+ * Agrégat et statistiques vers DTO, à la main.
+ *
+ * <p>Public parce que le direct s'en sert aussi : l'événement {@code stats} d'une course en
+ * cours doit présenter exactement la même forme que sa lecture REST, sans quoi le client
+ * écrirait deux fois le même affichage.
+ */
+public final class ActivityMapper {
 
     private ActivityMapper() {
     }
 
-    static ActivityDtos.ActivityResponse toResponse(Activity activity, ActivityStats stats) {
+    public static ActivityDtos.ActivityResponse toResponse(Activity activity, ActivityStats stats) {
         return new ActivityDtos.ActivityResponse(
                 activity.id().toString(),
                 activity.ownerId().toString(),
@@ -26,7 +32,7 @@ final class ActivityMapper {
                 toStats(stats));
     }
 
-    static ActivityDtos.StatsResponse toStats(ActivityStats stats) {
+    public static ActivityDtos.StatsResponse toStats(ActivityStats stats) {
         return new ActivityDtos.StatsResponse(
                 stats.distance().meters(),
                 stats.elapsed().toSeconds(),

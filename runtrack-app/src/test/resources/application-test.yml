@@ -9,3 +9,12 @@ spring:
       - classpath:db/migration/auth
       - classpath:db/migration/social
       - classpath:db/migration/course
+
+runtrack:
+  realtime:
+    # Un battement rapide : le test doit pouvoir en observer un sans attendre quinze secondes.
+    heartbeat: 300ms
+    # Le conteneur relit le stream à cette cadence quand rien n'arrive ; en test, l'attente
+    # après une ingestion doit rester de l'ordre de la centaine de millisecondes.
+    poll-timeout: 100ms
+    stream-retention: 1m

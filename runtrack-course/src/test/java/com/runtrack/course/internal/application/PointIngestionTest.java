@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import com.runtrack.course.internal.application.fixture.CourseDoubles;
 import com.runtrack.course.internal.domain.activity.Activity;
 import com.runtrack.course.internal.domain.activity.ActivityType;
+import com.runtrack.course.internal.domain.live.LiveEvent;
 import com.runtrack.course.internal.domain.stats.StatsAccumulator;
 import com.runtrack.course.internal.domain.track.PointRejection;
 import com.runtrack.course.internal.domain.track.TrackPoint;
@@ -41,6 +42,7 @@ class PointIngestionTest {
     private CourseDoubles.Activities activities;
     private CourseDoubles.Stats stats;
     private CourseDoubles.Points points;
+    private CourseDoubles.LivePublisher live;
     private ActivityLifecycle lifecycle;
     private PointIngestion ingestion;
 
@@ -53,9 +55,11 @@ class PointIngestionTest {
         var users = new CourseDoubles.Users();
         ApplicationEventPublisher publisher = event -> { };
 
-        lifecycle = new ActivityLifecycle(activities, stats, relations, publisher, AT_START, new Random(7));
+        live = new CourseDoubles.LivePublisher();
+        lifecycle = new ActivityLifecycle(
+                activities, stats, relations, publisher, live, AT_START, new Random(7));
         var queries = new ActivityQueries(activities, stats, relations, users, AN_HOUR_LATER);
-        ingestion = new PointIngestion(activities, stats, points, queries, AN_HOUR_LATER);
+        ingestion = new PointIngestion(activities, stats, points, queries, live, AN_HOUR_LATER);
     }
 
     private Activity aRun() {
@@ -217,6 +221,34 @@ class PointIngestionTest {
                 .isEqualTo(START.plusSeconds(30));
     }
 
+    /**
+     * Ce qui part vers les spectateurs : chaque position, et les statistiques une seule fois.
+     *
+     * <p>Une version des statistiques par point ferait clignoter l'écran du spectateur sur des
+     * états intermédiaires que la course n'a jamais eus.
+     */
+    @Test
+    void broadcastsEveryAcceptedPointAndTheStatisticsOnce() {
+        Activity run = aRun();
+
+        ingestion.ingest(MARIE, run.id(), aStraightLine(4));
+
+        assertThat(live.broadcast()).hasSize(5);
+        assertThat(live.broadcast().subList(0, 4)).allMatch(LiveEvent.Position.class::isInstance);
+        assertThat(live.broadcast().getLast()).isInstanceOf(LiveEvent.Stats.class);
+    }
+
+    @Test
+    void aFullyRejectedBatchBroadcastsNothing() {
+        Activity run = aRun();
+        ingestion.ingest(MARIE, run.id(), aStraightLine(3));
+        int alreadySent = live.broadcast().size();
+
+        ingestion.ingest(MARIE, run.id(), aStraightLine(3));
+
+        assertThat(live.broadcast()).hasSize(alreadySent);
+    }
+
     /** Rejoue depuis zéro tous les points stockés : la référence dont tout le reste est comparé. */
     private com.runtrack.course.internal.domain.stats.ActivityStats replayedFromScratch(
             List<TrackPoint> allPoints) {
@@ -228,7 +260,8 @@ class PointIngestionTest {
         var users = new CourseDoubles.Users();
         var queries = new ActivityQueries(activities, scratchStats, relations, users, AN_HOUR_LATER);
 
-        return new PointIngestion(activities, scratchStats, scratchPoints, queries, AN_HOUR_LATER)
+        return new PointIngestion(activities, scratchStats, scratchPoints, queries,
+                new CourseDoubles.LivePublisher(), AN_HOUR_LATER)
                 .ingest(MARIE, fresh.id(), allPoints)
                 .stats();
     }
