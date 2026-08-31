@@ -20,8 +20,28 @@ public final class PushComposer {
     private PushComposer() {
     }
 
+    /** « Marie », puis « Marie et 1 autre », puis « Marie et 4 autres ». */
+    private static String withOthers(String who, int aggregateCount) {
+        int others = Math.max(aggregateCount - 1, 0);
+        if (others == 0) {
+            return who;
+        }
+        return who + " et " + others + (others == 1 ? " autre" : " autres");
+    }
+
     public static PushMessage compose(NotificationType type, String actorName, String deepLink) {
-        String who = actorName == null || actorName.isBlank() ? SOMEONE : actorName;
+        return compose(type, actorName, deepLink, 1);
+    }
+
+    /**
+     * @param aggregateCount le nombre de faits résumés : au-delà de un, le libellé devient
+     *     « Marie et 4 autres ont aimé » plutôt que d'annoncer un seul d'entre eux
+     */
+    public static PushMessage compose(NotificationType type, String actorName, String deepLink,
+            int aggregateCount) {
+
+        String who = withOthers(actorName == null || actorName.isBlank() ? SOMEONE : actorName,
+                aggregateCount);
         return switch (type) {
             case FRIEND_STARTED_ACTIVITY -> new PushMessage(
                     who + " vient de démarrer une course", "Suivez-la en direct", deepLink);

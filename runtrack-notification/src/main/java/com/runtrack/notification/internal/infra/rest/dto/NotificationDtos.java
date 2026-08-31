@@ -24,7 +24,9 @@ public final class NotificationDtos {
             String deepLink,
             Instant createdAt,
             Instant readAt,
-            boolean unread) {
+            boolean unread,
+            /** Combien de faits cette notification résume : « Marie et 4 autres ont aimé ». */
+            int aggregateCount) {
     }
 
     /** Pagination par curseur : le client renvoie {@code nextCursor} pour la page suivante. */

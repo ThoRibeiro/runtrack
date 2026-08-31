@@ -25,7 +25,8 @@ public final class NotificationMapper {
                 notification.deepLink(),
                 notification.createdAt(),
                 notification.readAt().orElse(null),
-                notification.isUnread());
+                notification.isUnread(),
+                notification.aggregateCount());
     }
 
     static Instant nextCursorOf(java.util.List<Notification> page) {

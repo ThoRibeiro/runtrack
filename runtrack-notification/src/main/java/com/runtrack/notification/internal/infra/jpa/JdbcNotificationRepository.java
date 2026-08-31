@@ -41,8 +41,26 @@ class JdbcNotificationRepository implements NotificationRepository {
             ON CONFLICT (id) DO NOTHING
             """;
 
+    /**
+     * L'agrégation : la ligne remonte en tête, redevient non lue, et son compteur avance.
+     *
+     * <p>Tout se joue dans un seul {@code UPDATE} : lire puis réécrire ferait perdre l'un des deux
+     * « j'aime » arrivés en même temps, ce qui est exactement le cas où le compteur sert.
+     */
+    private static final String AGGREGATE = """
+            INSERT INTO notifications (id, recipient_id, type, actor_id, deep_link, created_at,
+                                       read_at, aggregate_count)
+            VALUES (?, ?, ?, ?, ?, ?, NULL, 1)
+            ON CONFLICT (id) DO UPDATE SET
+                aggregate_count = notifications.aggregate_count + 1,
+                actor_id = EXCLUDED.actor_id,
+                created_at = EXCLUDED.created_at,
+                read_at = NULL
+            RETURNING aggregate_count
+            """;
+
     private static final String COLUMNS =
-            "id, recipient_id, type, actor_id, deep_link, created_at, read_at";
+            "id, recipient_id, type, actor_id, deep_link, created_at, read_at, aggregate_count";
 
     private static final RowMapper<Notification> MAPPER = (rs, rowNumber) -> new Notification(
             new NotificationId(rs.getObject("id", UUID.class)),
@@ -52,7 +70,8 @@ class JdbcNotificationRepository implements NotificationRepository {
             rs.getString("deep_link"),
             rs.getObject("created_at", OffsetDateTime.class).toInstant(),
             Optional.ofNullable(rs.getObject("read_at", OffsetDateTime.class))
-                    .map(OffsetDateTime::toInstant));
+                    .map(OffsetDateTime::toInstant),
+            rs.getInt("aggregate_count"));
 
     private final JdbcTemplate jdbc;
 
@@ -93,6 +112,21 @@ class JdbcNotificationRepository implements NotificationRepository {
             }
         }
         return List.copyOf(inserted);
+    }
+
+    @Override
+    public Notification aggregate(Notification notification) {
+        Integer total = jdbc.queryForObject(AGGREGATE, Integer.class,
+                notification.id().value(),
+                notification.recipientId().value(),
+                notification.type().name(),
+                notification.actorId().map(UserId::value).orElse(null),
+                notification.deepLink(),
+                notification.createdAt().atOffset(ZoneOffset.UTC));
+
+        return new Notification(notification.id(), notification.recipientId(), notification.type(),
+                notification.actorId(), notification.deepLink(), notification.createdAt(),
+                Optional.empty(), total == null ? 1 : total);
     }
 
     @Override

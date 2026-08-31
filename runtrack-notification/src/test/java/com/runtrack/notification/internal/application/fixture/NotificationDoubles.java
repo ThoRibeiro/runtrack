@@ -53,6 +53,18 @@ public final class NotificationDoubles {
             return List.copyOf(inserted);
         }
 
+        /** Reproduit l'{@code ON CONFLICT DO UPDATE} : la ligne existe, son compteur avance. */
+        @Override
+        public Notification aggregate(Notification notification) {
+            Notification existing = stored.get(notification.id());
+            Notification updated = existing == null ? notification : new Notification(
+                    notification.id(), notification.recipientId(), notification.type(),
+                    notification.actorId(), notification.deepLink(), notification.createdAt(),
+                    Optional.empty(), existing.aggregateCount() + 1);
+            stored.put(updated.id(), updated);
+            return updated;
+        }
+
         @Override
         public List<Notification> findFor(UserId recipientId, Optional<Instant> before,
                 boolean unreadOnly, int limit) {

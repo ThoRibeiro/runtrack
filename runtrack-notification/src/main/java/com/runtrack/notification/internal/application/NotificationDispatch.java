@@ -87,6 +87,55 @@ public class NotificationDispatch {
         return List.copyOf(written);
     }
 
+    /**
+     * Un « j'aime » : une seule notification par course, dont le compteur grandit.
+     *
+     * <p>L'identifiant est déduit de la course et du destinataire, <b>sans l'instant</b> — c'est ce
+     * qui fait que le deuxième « j'aime » retombe sur la même ligne et l'incrémente au lieu d'en
+     * créer une seconde. C'est l'agrégation du §7, et c'est aussi ce qui rend le rejeu inoffensif
+     * pour tout le reste : ici, un rejeu compterait une fois de trop, mais le registre ne rejoue que
+     * ce qui n'a pas abouti.
+     */
+    @Transactional
+    public List<Notification> activityLiked(ActivityId activityId, UserId ownerId, UserId likerId,
+            Instant at) {
+
+        if (ownerId.equals(likerId) || !allowed(ownerId, NotificationType.ACTIVITY_LIKED)) {
+            // On ne se notifie pas d'aimer sa propre course.
+            return List.of();
+        }
+        Notification aggregated = notifications.aggregate(Notification.unread(
+                NotificationId.deducedFrom(NotificationType.ACTIVITY_LIKED, ownerId,
+                        activityId.toString(), Instant.EPOCH),
+                ownerId, NotificationType.ACTIVITY_LIKED, likerId,
+                DeepLink.activity(activityId), at));
+
+        broadcaster.deliver(List.of(aggregated));
+        return List.of(aggregated);
+    }
+
+    @Transactional
+    public List<Notification> activityCommented(ActivityId activityId, UserId ownerId,
+            UserId authorId, String commentId, Instant at) {
+
+        if (ownerId.equals(authorId)) {
+            return List.of();
+        }
+        return notifyOne(NotificationType.ACTIVITY_COMMENTED, ownerId, authorId,
+                DeepLink.comment(activityId, commentId), commentId, at);
+    }
+
+    @Transactional
+    public List<Notification> commentReplied(ActivityId activityId, UserId parentAuthorId,
+            UserId authorId, String commentId, Instant at) {
+
+        if (parentAuthorId.equals(authorId)) {
+            return List.of();
+        }
+        return notifyOne(NotificationType.COMMENT_REPLIED, parentAuthorId, authorId,
+                DeepLink.comment(activityId, commentId), commentId, at);
+    }
+
     @Transactional
     public List<Notification> followRequested(UserId followerId, UserId followeeId, Instant at) {
         return notifyOne(NotificationType.FOLLOW_REQUEST, followeeId, followerId,
@@ -105,10 +154,9 @@ public class NotificationDispatch {
 
         List<Notification> written = notifications.appendAll(audience.stream()
                 .filter(recipient -> wants(chosen, recipient, type))
-                .map(recipient -> new Notification(
+                .map(recipient -> Notification.unread(
                         NotificationId.deducedFrom(type, recipient, subject, at),
-                        recipient, type, java.util.Optional.of(actorId),
-                        deepLink, at, java.util.Optional.empty()))
+                        recipient, type, actorId, deepLink, at))
                 .toList());
 
         broadcaster.deliver(written);
@@ -126,6 +174,10 @@ public class NotificationDispatch {
                 recipientId, type, actorId, deepLink, at)));
         broadcaster.deliver(written);
         return written;
+    }
+
+    private boolean allowed(UserId recipientId, NotificationType type) {
+        return wants(preferences.findAll(Set.of(recipientId)), recipientId, type);
     }
 
     /** Sans préférences enregistrées, tout passe : voir {@link NotificationPreferences}. */

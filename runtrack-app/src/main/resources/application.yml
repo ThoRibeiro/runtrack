@@ -45,6 +45,9 @@ spring:
       - classpath:db/migration/auth
       - classpath:db/migration/social
       - classpath:db/migration/course
+      - classpath:db/migration/sharing
+      - classpath:db/migration/engagement
+      - classpath:db/migration/feed
       - classpath:db/migration/notification
 
 runtrack:

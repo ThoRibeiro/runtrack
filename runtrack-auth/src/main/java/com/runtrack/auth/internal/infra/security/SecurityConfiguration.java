@@ -61,6 +61,10 @@ public class SecurityConfiguration {
                         // Le direct suit la même règle que la lecture : c'est ActivityAccessPolicy
                         // qui tranche, et une course fermée répond « introuvable » ici aussi.
                         .requestMatchers(HttpMethod.GET, "/api/v1/activities/*/stream").permitAll()
+                        // Likes et commentaires d'une course publique se lisent sans compte, comme
+                        // la course elle-même. Écrire, en revanche, demande une identité.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/activities/*/likes").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/activities/*/comments").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/activities").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .anyRequest().authenticated())

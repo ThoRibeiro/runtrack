@@ -32,10 +32,10 @@ Le découpage de premier niveau est **fonctionnel**. L'architecture hexagonale s
 | `runtrack-auth` | Inscription, connexion, JWT, refresh rotatif |
 | `runtrack-social` | Abonnements, demandes, blocages |
 | `runtrack-course` | Le domaine riche : cycle de vie, ingestion GPS, statistiques, live |
-| `runtrack-sharing` | Liens de partage publics et révocables |
+| `runtrack-sharing` | Liens de partage publics et révocables. Le filtre du §5.4 réachemine vers `course`, qui l'ignore. |
 | `runtrack-engagement` | Likes et commentaires |
 | `runtrack-notification` | Notifications in-app, push, préférences |
-| `runtrack-feed` | Projection de lecture du fil d'actualité |
+| `runtrack-feed` | Projection de lecture du fil, tenue par événements. Fan-out à la lecture. |
 | `runtrack-app` | Assemblage exécutable + tests de frontières |
 | `runtrack-coverage` | Rapport de couverture agrégé et seuil de build |
 

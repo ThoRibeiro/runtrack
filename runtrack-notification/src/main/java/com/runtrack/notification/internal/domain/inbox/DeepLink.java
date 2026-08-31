@@ -33,4 +33,9 @@ public final class DeepLink {
     public static String followRequests() {
         return "/me/follow-requests";
     }
+
+    /** Un commentaire s'ouvre dans le fil de sa course, pas sur une page à lui. */
+    public static String comment(ActivityId activityId, String commentId) {
+        return "/activities/" + activityId + "/comments#" + commentId;
+    }
 }

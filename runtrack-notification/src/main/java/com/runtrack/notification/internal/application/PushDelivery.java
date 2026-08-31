@@ -101,7 +101,8 @@ public class PushDelivery {
                 notification -> PushComposer.compose(
                         notification.type(),
                         notification.actorId().map(names::get).orElse(null),
-                        notification.deepLink()),
+                        notification.deepLink(),
+                        notification.aggregateCount()),
                 Collectors.mapping(Notification::recipientId, Collectors.toList())));
 
         var invalid = new java.util.HashSet<String>();
@@ -147,6 +148,11 @@ public class PushDelivery {
      * <p>Trois courses démarrées en dix minutes, ce sont trois faits : la boîte les garde, et
      * l'écran saura les regrouper. Le push, lui, est une interruption — la deuxième en dix minutes
      * n'apprend rien de plus et coûte l'attention de quelqu'un.
+     *
+     * <p>Pour les « j'aime », c'est le <b>sujet</b> qui borne, pas l'auteur : vingt personnes qui
+     * aiment la même course ne doivent produire qu'un push, dont le libellé porte le total. La clé
+     * est donc la course elle-même, ce que rend la notification agrégée en désignant son propre
+     * destinataire comme acteur de la fenêtre.
      */
     private boolean passesAntiSpam(Notification notification) {
         return notification.actorId()

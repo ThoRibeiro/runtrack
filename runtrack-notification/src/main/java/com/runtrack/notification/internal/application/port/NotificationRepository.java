@@ -22,6 +22,17 @@ public interface NotificationRepository {
     List<Notification> appendAll(List<Notification> notifications);
 
     /**
+     * Écrit ou <b>fait grossir</b> une notification qui résume plusieurs faits.
+     *
+     * <p>Le second « j'aime » sur une course ne crée pas de ligne : il incrémente le compteur de
+     * celle qui existe, la remet en tête et la repasse en non lue. C'est l'agrégation du §7, et
+     * elle se fait en une commande — deux « j'aime » simultanés doivent en compter deux.
+     *
+     * @return la notification telle qu'elle est désormais en base
+     */
+    Notification aggregate(Notification notification);
+
+    /**
      * Une page de la boîte, de la plus récente à la plus ancienne.
      *
      * @param before curseur : la date de création de la dernière notification déjà reçue

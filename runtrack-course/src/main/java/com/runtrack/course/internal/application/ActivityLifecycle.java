@@ -1,10 +1,12 @@
 package com.runtrack.course.internal.application;
 
+import com.runtrack.course.event.ActivityDeleted;
 import com.runtrack.course.event.ActivityDiscarded;
 import com.runtrack.course.event.ActivityFinished;
 import com.runtrack.course.event.ActivityPaused;
 import com.runtrack.course.event.ActivityResumed;
 import com.runtrack.course.event.ActivityStarted;
+import com.runtrack.course.event.ActivityVisibilityChanged;
 import com.runtrack.course.internal.application.port.ActivityRepository;
 import com.runtrack.course.internal.application.port.ActivityStatsStore;
 import com.runtrack.course.internal.application.port.LiveActivityPublisher;
@@ -131,7 +133,12 @@ public class ActivityLifecycle {
     public Activity changeScope(UserId ownerId, ActivityId id, AudienceScope scope) {
         Activity activity = requireOwned(ownerId, id);
         activity.changeScope(scope);
-        return activities.save(activity);
+        Activity saved = activities.save(activity);
+        // Le fil doit l'apprendre : une course repassée en privé n'a plus rien à y faire, et la
+        // projection n'a aucun autre moyen de le savoir.
+        events.publishEvent(new ActivityVisibilityChanged(
+                id, effectiveScopeOf(saved).name(), clock.instant(), correlationId()));
+        return saved;
     }
 
     @Transactional
@@ -139,6 +146,7 @@ public class ActivityLifecycle {
         requireOwned(ownerId, id);
         stats.delete(id);
         activities.delete(id);
+        events.publishEvent(new ActivityDeleted(id, clock.instant(), correlationId()));
     }
 
     private void broadcastStatus(Activity activity, Instant now) {

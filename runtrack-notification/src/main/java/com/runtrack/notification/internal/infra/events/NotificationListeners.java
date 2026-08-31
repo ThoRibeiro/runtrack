@@ -2,6 +2,9 @@ package com.runtrack.notification.internal.infra.events;
 
 import com.runtrack.course.event.ActivityFinished;
 import com.runtrack.course.event.ActivityStarted;
+import com.runtrack.engagement.event.ActivityCommented;
+import com.runtrack.engagement.event.ActivityLiked;
+import com.runtrack.engagement.event.CommentReplied;
 import com.runtrack.notification.internal.application.NotificationDispatch;
 import com.runtrack.notification.internal.application.PushDelivery;
 import com.runtrack.shared.access.AudienceScope;
@@ -51,6 +54,24 @@ class NotificationListeners {
     void onActivityFinished(ActivityFinished event) {
         push.push(dispatch.runFinished(event.activityId(), event.ownerId(),
                 AudienceScope.valueOf(event.effectiveScope()), event.at()));
+    }
+
+    @ApplicationModuleListener
+    void onActivityLiked(ActivityLiked event) {
+        push.push(dispatch.activityLiked(event.activityId(), event.ownerId(), event.likerId(),
+                event.at()));
+    }
+
+    @ApplicationModuleListener
+    void onActivityCommented(ActivityCommented event) {
+        push.push(dispatch.activityCommented(event.activityId(), event.ownerId(), event.authorId(),
+                event.commentId(), event.at()));
+    }
+
+    @ApplicationModuleListener
+    void onCommentReplied(CommentReplied event) {
+        push.push(dispatch.commentReplied(event.activityId(), event.parentAuthorId(),
+                event.authorId(), event.commentId(), event.at()));
     }
 
     @ApplicationModuleListener
