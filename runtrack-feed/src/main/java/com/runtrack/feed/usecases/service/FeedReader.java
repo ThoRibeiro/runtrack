@@ -52,7 +52,11 @@ public class FeedReader {
         Set<UserId> owners = new LinkedHashSet<>(social.acceptedFolloweeIds(reader));
         owners.add(reader);
 
-        List<FeedEntry> entries = projection.page(owners, before, pageSize(limit));
+        // Deux opérations distinctes du port : la tête d'un fil se répète et se cache, une page à
+        // curseur est unique. Ce service ne sait pas laquelle est mémorisée, et n'a pas à le savoir.
+        List<FeedEntry> entries = before.isPresent()
+                ? projection.page(owners, before, pageSize(limit))
+                : projection.headOf(reader, owners, pageSize(limit));
         Map<UserId, UserSummary> authors = users.summaries(entries.stream()
                 .map(FeedEntry::ownerId)
                 .collect(Collectors.toSet()));

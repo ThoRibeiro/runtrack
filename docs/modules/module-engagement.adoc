@@ -3,7 +3,15 @@
 |Base package
 |`com.runtrack.engagement`
 |Bean references
-|* `c.r.p.ratelimit.RateLimiter` (in platform)
+|* `c.r.p.cache.CacheGateway` (in platform)
+* `c.r.p.cache.CacheProperties` (in platform)
+* `c.r.p.ratelimit.RateLimiter` (in platform)
 * `c.r.p.ratelimit.RateLimitProperties` (in platform)
 * `c.r.c.CourseApi` (in course)
+|Events listened to
+|* `c.r.e.event.CommentReplied` 
+* `c.r.e.event.ActivityLiked` 
+* `c.r.e.event.CommentDeleted` 
+* `c.r.e.event.ActivityUnliked` 
+* `c.r.e.event.ActivityCommented` 
 |===

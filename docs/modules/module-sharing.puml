@@ -19,14 +19,18 @@ System_Boundary("RunTrackApplication_boundary", "RunTrackApplication", $tags="")
   Container_Boundary("RunTrackApplication.RunTrackApplication_boundary", "RunTrackApplication", $tags="") {
     Component(RunTrackApplication.RunTrackApplication.sharing, "sharing", $techn="Module", $descr="", $tags="", $link="")
     Component(RunTrackApplication.RunTrackApplication.shared, "shared", $techn="Module", $descr="", $tags="", $link="")
+    Component(RunTrackApplication.RunTrackApplication.platform, "platform", $techn="Module", $descr="", $tags="", $link="")
     Component(RunTrackApplication.RunTrackApplication.course, "course", $techn="Module", $descr="", $tags="", $link="")
   }
 
 }
 
-Rel(RunTrackApplication.RunTrackApplication.sharing, RunTrackApplication.RunTrackApplication.shared, "depends on", $techn="", $tags="", $link="")
-Rel(RunTrackApplication.RunTrackApplication.sharing, RunTrackApplication.RunTrackApplication.course, "uses", $techn="", $tags="", $link="")
 Rel(RunTrackApplication.RunTrackApplication.course, RunTrackApplication.RunTrackApplication.shared, "depends on", $techn="", $tags="", $link="")
+Rel(RunTrackApplication.RunTrackApplication.course, RunTrackApplication.RunTrackApplication.platform, "uses", $techn="", $tags="", $link="")
+Rel(RunTrackApplication.RunTrackApplication.platform, RunTrackApplication.RunTrackApplication.shared, "depends on", $techn="", $tags="", $link="")
+Rel(RunTrackApplication.RunTrackApplication.sharing, RunTrackApplication.RunTrackApplication.shared, "depends on", $techn="", $tags="", $link="")
+Rel(RunTrackApplication.RunTrackApplication.sharing, RunTrackApplication.RunTrackApplication.platform, "uses", $techn="", $tags="", $link="")
+Rel(RunTrackApplication.RunTrackApplication.sharing, RunTrackApplication.RunTrackApplication.course, "uses", $techn="", $tags="", $link="")
 
 SHOW_LEGEND(true)
 hide stereotypes

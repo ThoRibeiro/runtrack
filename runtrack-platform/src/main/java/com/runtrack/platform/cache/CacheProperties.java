@@ -22,7 +22,9 @@ public record CacheProperties(
         Duration activitySummaryTtl,
         Duration countersTtl,
         Duration shareTokenTtl,
-        Duration feedHeadTtl) {
+        Duration feedHeadTtl,
+        Duration recomputeLock,
+        Duration recomputeWait) {
 
     public CacheProperties {
         enabled = enabled == null || enabled;
@@ -33,6 +35,13 @@ public record CacheProperties(
         countersTtl = countersTtl == null ? Duration.ofMinutes(1) : countersTtl;
         shareTokenTtl = shareTokenTtl == null ? Duration.ofMinutes(15) : shareTokenTtl;
         feedHeadTtl = feedHeadTtl == null ? Duration.ofSeconds(30) : feedHeadTtl;
+        // Le verrou de recalcul doit survivre à la requête la plus lente qu'il protège, et
+        // expirer bien avant le TTL de l'entrée : un verrou trop long fige, trop court ne sert
+        // à rien.
+        recomputeLock = recomputeLock == null ? Duration.ofSeconds(5) : recomputeLock;
+        // Ce que les perdants laissent au gagnant avant de relire. Assez pour une requête
+        // ordinaire, assez court pour ne pas se voir sur une page.
+        recomputeWait = recomputeWait == null ? Duration.ofMillis(50) : recomputeWait;
     }
 
     public boolean isEnabled() {

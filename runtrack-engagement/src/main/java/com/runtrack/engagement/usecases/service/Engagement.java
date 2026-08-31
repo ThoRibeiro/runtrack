@@ -6,6 +6,7 @@ import com.runtrack.engagement.event.ActivityLiked;
 import com.runtrack.engagement.event.ActivityUnliked;
 import com.runtrack.engagement.event.CommentDeleted;
 import com.runtrack.engagement.event.CommentReplied;
+import com.runtrack.engagement.usecases.port.ActivityCountersRepository;
 import com.runtrack.engagement.usecases.port.CommentRepository;
 import com.runtrack.engagement.usecases.port.LikeRepository;
 import com.runtrack.engagement.usecases.model.interaction.Comment;
@@ -47,15 +48,19 @@ public class Engagement {
 
     private final LikeRepository likes;
     private final CommentRepository comments;
+    private final ActivityCountersRepository counters;
     private final CourseApi courses;
     private final ApplicationEventPublisher events;
     private final Clock clock;
     private final RandomGenerator random;
 
-    public Engagement(LikeRepository likes, CommentRepository comments, CourseApi courses,
+    public Engagement(LikeRepository likes, CommentRepository comments,
+            ActivityCountersRepository counters, CourseApi courses,
             ApplicationEventPublisher events, Clock clock, RandomGenerator random) {
+
         this.likes = likes;
         this.comments = comments;
+        this.counters = counters;
         this.courses = courses;
         this.events = events;
         this.clock = clock;
@@ -89,8 +94,10 @@ public class Engagement {
     @Transactional(readOnly = true)
     public Likes likesOf(Viewer viewer, ActivityId activityId) {
         requireVisible(viewer, activityId);
+        // Le total vient du compteur caché, la liste de la table : l'un se relit mille fois par
+        // écran, l'autre affiche des noms qu'on ne veut pas voir périmés.
         return new Likes(
-                likes.countFor(activityId),
+                counters.countersOf(activityId).likes(),
                 likes.ofActivity(activityId, MAX_LIKES_LISTED),
                 viewer.userId().map(reader -> likes.exists(activityId, reader)).orElse(false));
     }
@@ -133,12 +140,16 @@ public class Engagement {
     }
 
     @Transactional(readOnly = true)
-    public List<Comment> commentsOf(Viewer viewer, ActivityId activityId, Optional<Instant> after,
+    public CommentPage commentsOf(Viewer viewer, ActivityId activityId, Optional<Instant> after,
             Integer limit) {
 
         requireVisible(viewer, activityId);
-        return comments.ofActivity(activityId, after,
-                limit == null ? DEFAULT_COMMENT_PAGE : Math.clamp(limit, 1, MAX_COMMENT_PAGE));
+        // Le total accompagne la page : sans lui, un écran qui affiche « 12 commentaires » devrait
+        // paginer jusqu'au bout pour les compter.
+        return new CommentPage(
+                comments.ofActivity(activityId, after,
+                        limit == null ? DEFAULT_COMMENT_PAGE : Math.clamp(limit, 1, MAX_COMMENT_PAGE)),
+                counters.countersOf(activityId).comments());
     }
 
     /**
@@ -201,5 +212,9 @@ public class Engagement {
 
     /** Ce que l'écran d'une course affiche des « j'aime » : combien, par qui, et si c'est déjà fait. */
     public record Likes(long total, List<Like> recent, boolean likedByViewer) {
+    }
+
+    /** Une page de commentaires et le total de la course, lus ensemble. */
+    public record CommentPage(List<Comment> items, long total) {
     }
 }

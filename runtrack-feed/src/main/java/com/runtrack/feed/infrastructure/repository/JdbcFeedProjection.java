@@ -129,6 +129,13 @@ class JdbcFeedProjection implements FeedProjection {
     }
 
     @Override
+    public List<FeedEntry> headOf(UserId reader, Collection<UserId> owners, int limit) {
+        // Le lecteur ne change pas la requête : il dit de qui est ce fil, ce dont seul le cache a
+        // besoin. La base, elle, ne connaît que la liste des comptes suivis.
+        return page(owners, Optional.empty(), limit);
+    }
+
+    @Override
     public List<FeedEntry> page(Collection<UserId> owners, Optional<Instant> before, int limit) {
         if (owners.isEmpty()) {
             return List.of();

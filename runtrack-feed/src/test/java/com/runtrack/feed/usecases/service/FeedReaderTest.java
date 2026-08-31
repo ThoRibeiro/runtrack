@@ -68,6 +68,11 @@ class FeedReaderTest {
         }
 
         @Override
+        public List<FeedEntry> headOf(UserId reader, Collection<UserId> owners, int limit) {
+            return page(owners, Optional.empty(), limit);
+        }
+
+        @Override
         public List<FeedEntry> page(Collection<UserId> owners, Optional<Instant> before, int limit) {
             return stored.values().stream()
                     .filter(entry -> owners.contains(entry.ownerId()))

@@ -91,11 +91,12 @@ class EngagementController {
             @RequestParam(required = false) Instant cursor,
             @RequestParam(required = false) Integer limit) {
 
-        List<Comment> page = engagement.commentsOf(
+        Engagement.CommentPage page = engagement.commentsOf(
                 asViewer(viewer), ActivityId.of(id), Optional.ofNullable(cursor), limit);
         return new EngagementDtos.CommentPage(
-                page.stream().map(EngagementController::toResponse).toList(),
-                page.isEmpty() ? null : page.getLast().createdAt());
+                page.items().stream().map(EngagementController::toResponse).toList(),
+                page.items().isEmpty() ? null : page.items().getLast().createdAt(),
+                page.total());
     }
 
     @PatchMapping("/comments/{id}")

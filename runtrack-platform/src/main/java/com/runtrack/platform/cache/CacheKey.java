@@ -34,10 +34,6 @@ public final class CacheKey {
         return PREFIX + "following:" + userId;
     }
 
-    public static String blocks(String userId) {
-        return PREFIX + "blocks:" + userId;
-    }
-
     public static String activitySummary(String activityId) {
         return PREFIX + "activity:" + activityId + ":summary";
     }

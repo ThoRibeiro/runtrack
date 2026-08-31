@@ -3,5 +3,7 @@
 |Base package
 |`com.runtrack.sharing`
 |Bean references
-|* `c.r.c.CourseApi` (in course)
+|* `c.r.p.cache.CacheGateway` (in platform)
+* `c.r.p.cache.CacheProperties` (in platform)
+* `c.r.c.CourseApi` (in course)
 |===

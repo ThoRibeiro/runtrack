@@ -117,11 +117,75 @@ class RedisCacheGateway implements CacheGateway {
         if (cached.isPresent()) {
             return cached.get();
         }
-        T loaded = loader.get();
-        if (loaded != null) {
-            put(key, loaded, ttl);
+        return recomputeOnce(key, type, ttl, loader);
+    }
+
+    /**
+     * Le verrou anti-stampede du §6.
+     *
+     * <p>Quand l'entrée des abonnés d'un compte très suivi expire, toutes les requêtes en cours
+     * constatent le manque <em>en même temps</em> et partent recalculer ensemble : c'est
+     * précisément la requête la plus lourde de l'application, multipliée par le trafic. Un verrou
+     * court désigne un seul recalculateur.
+     *
+     * <p>Les autres n'attendent pas indéfiniment : elles laissent au gagnant le temps d'écrire,
+     * relisent, et <b>si le cache est encore vide, chargent quand même</b>. Bloquer serait pire
+     * que le problème — un verrou perdu à cause d'une panne figerait la lecture pour toute la
+     * durée de son expiration.
+     */
+    private <T> T recomputeOnce(String key, Class<T> type, Duration ttl, Supplier<T> loader) {
+        if (!acquired(key)) {
+            Optional<T> written = waitForWinner(key, type);
+            if (written.isPresent()) {
+                return written.get();
+            }
+            // Le gagnant n'a rien écrit — valeur nulle, ou panne. On charge sans mémoriser :
+            // c'est à lui de renseigner l'entrée.
+            return loader.get();
         }
-        return loaded;
+        try {
+            T loaded = loader.get();
+            if (loaded != null) {
+                put(key, loaded, ttl);
+            }
+            return loaded;
+        } finally {
+            release(key);
+        }
+    }
+
+    private boolean acquired(String key) {
+        try {
+            return Boolean.TRUE.equals(
+                    redis.opsForValue().setIfAbsent(lockKey(key), "1", properties.recomputeLock()));
+        } catch (RuntimeException degraded) {
+            // Sans verrou joignable, tout le monde recalcule : c'est le comportement d'avant, et
+            // il vaut mieux que de ne rien rendre du tout.
+            return true;
+        }
+    }
+
+    private <T> Optional<T> waitForWinner(String key, Class<T> type) {
+        try {
+            Thread.sleep(properties.recomputeWait().toMillis());
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return Optional.empty();
+        }
+        return get(key, type);
+    }
+
+    private void release(String key) {
+        try {
+            redis.delete(lockKey(key));
+        } catch (RuntimeException degraded) {
+            // Le verrou expire seul : le pire cas est un recalcul retardé de sa durée de vie.
+            LOG.debug("Verrou de recalcul non libéré sur {}", key);
+        }
+    }
+
+    private static String lockKey(String key) {
+        return key + ":recompute";
     }
 
     /**

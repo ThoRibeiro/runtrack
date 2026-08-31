@@ -37,7 +37,8 @@ public final class EngagementDtos {
             boolean deleted) {
     }
 
-    public record CommentPage(List<CommentResponse> items, Instant nextCursor) {
+    /** @param total le nombre de commentaires vivants de la course, supprimés exclus */
+    public record CommentPage(List<CommentResponse> items, Instant nextCursor, long total) {
     }
 
     /** @param likedByViewer de quoi allumer le cœur sans une seconde requête */

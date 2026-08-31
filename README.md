@@ -103,6 +103,38 @@ relecteur habitué à `wishlist-api` s'y retrouve sans traduction. Deux écarts 
 
 `runtrack-shared` et `runtrack-platform` tiennent le rôle de `infrastructure/technical/`.
 
+## Le cache
+
+Huit entrées, toutes versionnées (`cache:v1:…`), toutes posées par un **décorateur de port** —
+jamais une annotation dispersée. Les cas d'usage ignorent que le cache existe.
+
+| Donnée | TTL | Ce qui l'invalide |
+|---|---|---|
+| Profil public, visibilité de compte | 10 min | `UserProfileUpdated` |
+| Abonnés, abonnements | 5 min | follow, unfollow, blocage |
+| Résumé d'une course | 24 h | édition, suppression |
+| Compteurs likes / commentaires | 1 min | like, unlike, commentaire, suppression |
+| Résolution d'un jeton de partage | 15 min | révocation du lien |
+| Tête du fil | 30 s | l'expiration, plus les gestes du propriétaire |
+
+Deux choses ne sont **pas** cachées, et c'est délibéré :
+
+- **la décision `canView`** — cardinalité N×M, invalidation impossible à cibler ; on cache les
+  faits et on recompose la décision en mémoire, ce qui est gratuit et exact ;
+- **les blocages** — une valeur périmée de cinq minutes laisserait quelqu'un voir ce qu'il ne doit
+  plus voir. Un cache qui peut rouvrir une porte n'est pas un cache.
+
+**La tête du fil n'a pas d'invalidation par abonné**, et c'est un écart argumenté : purger les
+abonnés d'un coureur à chaque course démarrée serait le fan-out à l'écriture rejeté au lot 1,
+réintroduit par la porte du cache. Le propriétaire, lui, est purgé — supprimer sa course et la
+revoir dans son fil est un défaut visible, là où trente secondes de retard chez un abonné ne le
+sont pas : il est déjà prévenu par une notification et par le direct.
+
+Un **verrou anti-stampede** protège le recalcul : quand l'entrée des abonnés d'un compte très
+suivi expire, tout le trafic en cours constate le manque en même temps. Un seul recalcule, les
+autres relisent — et chargent quand même si le cache est resté vide, parce qu'un verrou perdu ne
+doit pas figer la lecture.
+
 ## Les deux flux qui traversent tout
 
 ### Le direct — de la montre à l'écran d'un spectateur

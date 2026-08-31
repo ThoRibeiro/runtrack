@@ -146,6 +146,12 @@ class EngagementTest {
         }
     }
 
+    /** Les compteurs, comptés à la volée sur les mêmes doubles : ici on ne teste pas le cache. */
+    private com.runtrack.engagement.usecases.port.ActivityCountersRepository counters() {
+        return activityId -> new com.runtrack.engagement.usecases.model.interaction.ActivityCounters(
+                likes.countFor(activityId), comments.countFor(activityId));
+    }
+
     private Likes likes;
     private Comments comments;
     private Courses courses;
@@ -159,7 +165,7 @@ class EngagementTest {
         courses = new Courses();
         published = new ArrayList<>();
         ApplicationEventPublisher events = published::add;
-        engagement = new Engagement(likes, comments, courses, events,
+        engagement = new Engagement(likes, comments, counters(), courses, events,
                 Clock.fixed(NOON, ZoneOffset.UTC), new Random(3));
     }
 

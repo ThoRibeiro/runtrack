@@ -28,6 +28,13 @@ runtrack:
     poll-timeout: 100ms
     stream-retention: 1m
 
+  cache:
+    # La tête de fil expire presque tout de suite en test. En production, trente secondes de
+    # retard sur le fil d'un abonné sont invisibles — il est déjà prévenu par une notification
+    # et par le direct. Dans un test, c'est trente secondes d'attente par assertion, ou un test
+    # qui vérifie le cache au lieu de vérifier le fil.
+    feed-head-ttl: 200ms
+
   ratelimit:
     # Le compteur par adresse IP est désarmé en test, et seulement lui. MockMvc fait partir
     # toutes les requêtes de 127.0.0.1 : le quota d'une adresse devient celui de la suite

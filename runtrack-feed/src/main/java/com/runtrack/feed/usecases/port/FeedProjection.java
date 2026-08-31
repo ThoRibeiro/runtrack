@@ -37,4 +37,16 @@ public interface FeedProjection {
      */
     List<FeedEntry> page(Collection<com.runtrack.shared.id.UserId> owners, Optional<Instant> before,
             int limit);
+
+    /**
+     * La première page du fil d'un lecteur.
+     *
+     * <p>Une opération à part de {@link #page}, et non un cas particulier de celle-ci, parce que
+     * c'est la seule dont le résultat <em>se répète</em> : elle est ouverte à chaque lancement de
+     * l'application, toujours identique, là où une page à curseur est unique et n'a personne
+     * d'autre à qui servir. Le lecteur en fait partie parce qu'il désigne <em>de qui</em> est ce
+     * fil — deux personnes ne suivent pas les mêmes comptes — et c'est ce qui la rend cachable.
+     */
+    List<FeedEntry> headOf(com.runtrack.shared.id.UserId reader,
+            Collection<com.runtrack.shared.id.UserId> owners, int limit);
 }
