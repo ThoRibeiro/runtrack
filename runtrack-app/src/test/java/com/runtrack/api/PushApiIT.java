@@ -9,8 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.runtrack.api.CourseFixtures.Account;
-import com.runtrack.notification.internal.application.port.PushThrottle;
-import com.runtrack.notification.internal.domain.inbox.NotificationType;
+import com.runtrack.notification.usecases.port.PushThrottle;
+import com.runtrack.notification.usecases.model.inbox.NotificationType;
 import com.runtrack.shared.id.UserId;
 import java.time.Duration;
 import java.util.UUID;

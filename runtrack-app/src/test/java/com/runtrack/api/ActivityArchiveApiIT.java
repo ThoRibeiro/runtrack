@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.runtrack.api.CourseFixtures.Account;
 import com.runtrack.api.CourseFixtures.Run;
-import com.runtrack.course.internal.application.port.ActivityArchive;
+import com.runtrack.course.usecases.port.ActivityArchive;
 import com.runtrack.shared.id.ActivityId;
 import java.time.Duration;
 import java.time.Instant;

@@ -62,11 +62,26 @@ Chaque module a la même forme :
 course/
 ├── CourseApi.java     seul point d'entrée pour les autres modules
 ├── event/             événements publiés — contrat inter-modules
-└── internal/          invisible des autres modules
-    ├── domain/        Java pur : ni Spring, ni Jakarta, ni Jackson, ni JPA
-    ├── application/   cas d'usage + ports sortants
-    └── infra/         rest/ jpa/ cache/ realtime/
+├── usecases/          le cœur, invisible des autres modules
+│   ├── model/         Java pur : ni Spring, ni Jakarta, ni Jackson, ni JPA
+│   ├── service/       cas d'usage
+│   └── port/          ports sortants
+└── infrastructure/    les adaptateurs
+    ├── endpoint/      @RestController + dto/
+    ├── repository/    implémentations des ports + entity/
+    └── cache/ realtime/
 ```
+
+Le vocabulaire est celui des APIs **Lark** (`usecases/` + `infrastructure/`), pour qu'un
+relecteur habitué à `wishlist-api` s'y retrouve sans traduction. Deux écarts assumés :
+
+- **les ports vivent dans `usecases/port/`**, pas dans `infrastructure/repository/`. La
+  dépendance va vers le centre, et c'est une règle ArchUnit qui le vérifie à chaque build ;
+- **un seul `@ControllerAdvice`, global**, dans `runtrack-platform`. Un advice scopé par
+  `assignableTypes` laisse les endpoints d'une seconde version sans mapping — c'est le
+  piège documenté sur `wishlist-api`, où les mêmes exceptions remontent en 500.
+
+`runtrack-shared` et `runtrack-platform` tiennent le rôle de `infrastructure/technical/`.
 
 ## Ce que le build vérifie
 

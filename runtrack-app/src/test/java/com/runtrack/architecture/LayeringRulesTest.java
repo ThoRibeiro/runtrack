@@ -15,36 +15,42 @@ import java.time.LocalDateTime;
  * les frontières entre modules, pas la façon dont chacun est bâti à l'intérieur.
  *
  * <p>Depuis que chaque module est un artefact Maven séparé, ces règles portent aussi la
- * garantie que le classpath ne donne plus : rien n'empêche techniquement
- * {@code auth} d'importer {@code user.internal}, seul {@code ApplicationModules.verify()}
+ * garantie que le classpath ne donne plus : rien n'empêche techniquement {@code auth}
+ * d'importer les paquets imbriqués de {@code user}, seul {@code ApplicationModules.verify()}
  * l'attrape.
+ *
+ * <p>Le vocabulaire est celui des APIs Lark — {@code usecases/} et {@code infrastructure/} —
+ * à une exception près, assumée : <b>les ports restent dans {@code usecases}</b>. Lark les
+ * place dans {@code infrastructure/repository/} avec un {@code impl/} à côté ; ici la
+ * dépendance va vers le centre, et c'est la règle {@code applicationIgnoresInfrastructure}
+ * ci-dessous qui le vérifie à chaque build.
  */
 @AnalyzeClasses(packages = "com.runtrack", importOptions = ImportOption.DoNotIncludeTests.class)
 class LayeringRulesTest {
 
     @ArchTest
     static final ArchRule domainStaysPlainJava = noClasses()
-            .that().resideInAPackage("..internal.domain..")
+            .that().resideInAPackage("..usecases.model..")
             .should().dependOnClassesThat()
             .resideInAnyPackage("org.springframework..", "jakarta..", "com.fasterxml.jackson..", "reactor..")
             .because("un domaine sans framework se teste sans contexte, sans mock et en millisecondes");
 
     @ArchTest
     static final ArchRule domainIgnoresOuterLayers = noClasses()
-            .that().resideInAPackage("..internal.domain..")
+            .that().resideInAPackage("..usecases.model..")
             .should().dependOnClassesThat()
-            .resideInAnyPackage("..internal.application..", "..internal.infra..")
+            .resideInAnyPackage("..usecases.service..", "..infrastructure..")
             .because("la dépendance va vers le centre, jamais l'inverse");
 
     @ArchTest
     static final ArchRule applicationIgnoresInfrastructure = noClasses()
-            .that().resideInAPackage("..internal.application..")
-            .should().dependOnClassesThat().resideInAPackage("..internal.infra..")
+            .that().resideInAnyPackage("..usecases.service..", "..usecases.port..")
+            .should().dependOnClassesThat().resideInAPackage("..com.runtrack.*.infrastructure..")
             .because("un port se déclare dans application et s'implémente dans infra");
 
     @ArchTest
     static final ArchRule domainNeverCallsAnotherModule = noClasses()
-            .that().resideInAPackage("..internal.domain..")
+            .that().resideInAPackage("..usecases.model..")
             .should().dependOnClassesThat().haveSimpleNameEndingWith("Api")
             .because("§5.2 : le domaine décide sur des faits qu'on lui passe, l'application les résout");
 
@@ -56,15 +62,15 @@ class LayeringRulesTest {
      */
     @ArchTest
     static final ArchRule persistenceStaysInInfrastructure = noClasses()
-            .that().resideOutsideOfPackage("..internal.infra..")
+            .that().resideOutsideOfPackage("..infrastructure..")
             .and().resideOutsideOfPackage("com.runtrack.platform..")
             .should().dependOnClassesThat()
             .resideInAnyPackage("jakarta.persistence..", "org.springframework.data..")
-            .because("le modèle JPA ne sort jamais de internal/infra");
+            .because("le modèle JPA ne sort jamais de infrastructure/");
 
     @ArchTest
     static final ArchRule cachingStaysInInfraCache = noClasses()
-            .that().resideOutsideOfPackage("..internal.infra.cache..")
+            .that().resideOutsideOfPackage("..infrastructure.cache..")
             .should().dependOnClassesThat().resideInAPackage("org.springframework.cache..")
             .because("§6 : le cache est un décorateur de port, pas une annotation dispersée");
 
