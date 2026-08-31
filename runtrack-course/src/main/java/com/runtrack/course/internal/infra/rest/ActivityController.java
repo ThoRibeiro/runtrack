@@ -3,6 +3,7 @@ package com.runtrack.course.internal.infra.rest;
 import static com.runtrack.course.internal.infra.rest.Principals.asViewer;
 import static com.runtrack.course.internal.infra.rest.Principals.requireUser;
 
+import com.runtrack.course.internal.application.ActivityArchival;
 import com.runtrack.course.internal.application.ActivityLifecycle;
 import com.runtrack.course.internal.application.ActivityQueries;
 import com.runtrack.course.internal.domain.activity.Activity;
@@ -47,11 +48,14 @@ class ActivityController {
 
     private final ActivityLifecycle lifecycle;
     private final ActivityQueries queries;
+    private final ActivityArchival archival;
     private final SocialApi social;
 
-    ActivityController(ActivityLifecycle lifecycle, ActivityQueries queries, SocialApi social) {
+    ActivityController(ActivityLifecycle lifecycle, ActivityQueries queries,
+            ActivityArchival archival, SocialApi social) {
         this.lifecycle = lifecycle;
         this.queries = queries;
+        this.archival = archival;
         this.social = social;
     }
 
@@ -139,6 +143,31 @@ class ActivityController {
         List<Activity> found = queries.ofOwner(
                 asViewer(viewer), UserId.of(id), Optional.ofNullable(cursor), pageSize(limit));
         return toPage(found);
+    }
+
+    /**
+     * La trace dessinée d'une course terminée.
+     *
+     * <p>Répond « introuvable » tant qu'elle n'est pas historisée : une course en cours n'a pas de
+     * trace figée, et son tracé se suit en direct.
+     */
+    @GetMapping("/activities/{id}/track")
+    ActivityDtos.TrackResponse track(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
+        Activity activity = queries.require(asViewer(viewer), ActivityId.of(id));
+        return archival.trackOf(activity.id())
+                .map(ActivityMapper::toTrack)
+                .orElseThrow(() -> new com.runtrack.shared.error.NotFoundException(
+                        "TRACK_NOT_ARCHIVED", "Cette course n'a pas encore de trace historisée"));
+    }
+
+    @GetMapping("/activities/{id}/splits")
+    ActivityDtos.SplitsResponse splits(@AuthenticationPrincipal Viewer viewer,
+            @PathVariable String id) {
+
+        Activity activity = queries.require(asViewer(viewer), ActivityId.of(id));
+        return new ActivityDtos.SplitsResponse(archival.splitsOf(activity.id()).stream()
+                .map(ActivityMapper::toSplit)
+                .toList());
     }
 
     /** Les courses en cours des comptes suivis : l'écran « en direct ». */

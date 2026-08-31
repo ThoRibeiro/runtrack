@@ -51,4 +51,28 @@ public final class ActivityMapper {
     private static Long secondsPerKilometer(Pace pace) {
         return pace.perKilometer().toSeconds();
     }
+
+    static ActivityDtos.TrackResponse toTrack(
+            com.runtrack.course.internal.application.port.ActivityArchive.ArchivedTrack track) {
+
+        return new ActivityDtos.TrackResponse(
+                track.polyline(),
+                track.pointCount(),
+                track.rawPointCount(),
+                track.frozenAt(),
+                track.pointsPurgedAt().orElse(null));
+    }
+
+    static ActivityDtos.SplitResponse toSplit(
+            com.runtrack.course.internal.domain.stats.Split split) {
+
+        return new ActivityDtos.SplitResponse(
+                split.kilometerIndex(),
+                split.distance().meters(),
+                split.time().toSeconds(),
+                split.pace().map(ActivityMapper::secondsPerKilometer).orElse(null),
+                split.elevationGain(),
+                split.averageHeartRate().isPresent() ? split.averageHeartRate().getAsDouble() : null,
+                split.isComplete());
+    }
 }

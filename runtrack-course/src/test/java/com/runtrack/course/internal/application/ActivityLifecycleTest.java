@@ -38,6 +38,8 @@ class ActivityLifecycleTest {
     private CourseDoubles.Stats stats;
     private CourseDoubles.Relations relations;
     private CourseDoubles.LivePublisher live;
+    private CourseDoubles.Points points;
+    private ActivityArchival archival;
     private List<Object> published;
     private ActivityLifecycle lifecycle;
 
@@ -49,7 +51,10 @@ class ActivityLifecycleTest {
         published = new ArrayList<>();
         ApplicationEventPublisher publisher = published::add;
         live = new CourseDoubles.LivePublisher();
-        lifecycle = new ActivityLifecycle(activities, stats, relations, publisher, live,
+        points = new CourseDoubles.Points();
+        archival = new ActivityArchival(points, new CourseDoubles.Archive(),
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        lifecycle = new ActivityLifecycle(activities, stats, relations, publisher, archival, live,
                 Clock.fixed(NOW, ZoneOffset.UTC), new java.util.Random(7));
     }
 

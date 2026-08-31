@@ -2,6 +2,7 @@ package com.runtrack.course.internal.application.fixture;
 
 import com.runtrack.course.internal.application.port.ActivityRepository;
 import com.runtrack.course.internal.application.port.ActivityStatsStore;
+import com.runtrack.course.internal.application.port.ActivityArchive;
 import com.runtrack.course.internal.application.port.IdempotencyStore;
 import com.runtrack.course.internal.application.port.LiveActivityPublisher;
 import com.runtrack.course.internal.application.port.TrackPointRepository;
@@ -9,6 +10,7 @@ import com.runtrack.course.internal.application.port.ViewerRelationResolver;
 import com.runtrack.course.internal.domain.access.ViewerRelation;
 import com.runtrack.course.internal.domain.activity.Activity;
 import com.runtrack.course.internal.domain.live.LiveEvent;
+import com.runtrack.course.internal.domain.stats.Split;
 import com.runtrack.course.internal.domain.stats.StatsAccumulator;
 import com.runtrack.course.internal.domain.track.TrackPoint;
 import com.runtrack.shared.access.AudienceScope;
@@ -182,6 +184,42 @@ public final class CourseDoubles {
 
         public int writes() {
             return writes;
+        }
+    }
+
+    /** La trace historisée en mémoire, avec la même clé que la table : la course. */
+    public static final class Archive implements ActivityArchive {
+
+        private final Map<ActivityId, ArchivedTrack> tracks = new LinkedHashMap<>();
+        private final Map<ActivityId, List<Split>> splits = new LinkedHashMap<>();
+
+        @Override
+        public void save(ArchivedTrack track, List<Split> theirSplits) {
+            tracks.put(track.activityId(), track);
+            splits.put(track.activityId(), List.copyOf(theirSplits));
+        }
+
+        @Override
+        public Optional<ArchivedTrack> find(ActivityId activityId) {
+            return Optional.ofNullable(tracks.get(activityId));
+        }
+
+        @Override
+        public List<Split> splitsOf(ActivityId activityId) {
+            return splits.getOrDefault(activityId, List.of());
+        }
+
+        @Override
+        public void delete(ActivityId activityId) {
+            tracks.remove(activityId);
+            splits.remove(activityId);
+        }
+
+        @Override
+        public int purgePointsArchivedBefore(java.time.Instant cutoff, java.time.Instant purgedAt,
+                int batchSize) {
+
+            return 0;
         }
     }
 

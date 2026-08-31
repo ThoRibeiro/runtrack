@@ -40,6 +40,7 @@ class LiveActivityStreamTest {
         ApplicationEventPublisher publisher = event -> { };
 
         lifecycle = new ActivityLifecycle(activities, stats, relations, publisher,
+                new ActivityArchival(points, new CourseDoubles.Archive(), AT_START),
                 new CourseDoubles.LivePublisher(), AT_START, new Random(7));
         stream = new LiveActivityStream(
                 new ActivityQueries(activities, stats, relations, users, AT_START), points);

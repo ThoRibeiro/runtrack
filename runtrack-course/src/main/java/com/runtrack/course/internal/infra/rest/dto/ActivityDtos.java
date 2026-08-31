@@ -62,4 +62,38 @@ public final class ActivityDtos {
     /** Pagination par curseur : le client renvoie {@code nextCursor} pour la page suivante. */
     public record ActivityPage(List<ActivityResponse> items, Instant nextCursor) {
     }
+
+    /**
+     * La trace historisée.
+     *
+     * @param polyline la trace simplifiée au format <i>encoded polyline</i> de Google — c'est ce
+     *     que la carte dessine, et ce qui pèse quelques kilo-octets au lieu de dizaines
+     * @param pointCount ce qu'il en reste après simplification
+     * @param rawPointCount ce qu'elle comptait avant ; l'écart dit ce que la simplification a gagné
+     * @param pointsPurgedAt renseignée quand les points bruts ont expiré : passé ce moment, la
+     *     trace reste affichable mais l'export n'est plus possible
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record TrackResponse(
+            String polyline,
+            int pointCount,
+            int rawPointCount,
+            Instant frozenAt,
+            Instant pointsPurgedAt) {
+    }
+
+    /** @param paceSecondsPerKm absente si le tronçon n'a pas duré : il n'y a alors pas d'allure */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record SplitResponse(
+            int kilometerIndex,
+            double distanceMeters,
+            long timeSeconds,
+            Long paceSecondsPerKm,
+            double elevationGain,
+            Double averageHeartRate,
+            boolean complete) {
+    }
+
+    public record SplitsResponse(List<SplitResponse> items) {
+    }
 }

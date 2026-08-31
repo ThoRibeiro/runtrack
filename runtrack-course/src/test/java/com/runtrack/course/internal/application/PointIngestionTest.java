@@ -56,8 +56,9 @@ class PointIngestionTest {
         ApplicationEventPublisher publisher = event -> { };
 
         live = new CourseDoubles.LivePublisher();
-        lifecycle = new ActivityLifecycle(
-                activities, stats, relations, publisher, live, AT_START, new Random(7));
+        lifecycle = new ActivityLifecycle(activities, stats, relations, publisher,
+                new ActivityArchival(points, new CourseDoubles.Archive(), AT_START),
+                live, AT_START, new Random(7));
         var queries = new ActivityQueries(activities, stats, relations, users, AN_HOUR_LATER);
         ingestion = new PointIngestion(activities, stats, points, queries, live, AN_HOUR_LATER);
     }

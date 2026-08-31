@@ -50,8 +50,10 @@ class IdempotentIngestionTest {
         ApplicationEventPublisher publisher = event -> { };
 
         var live = new CourseDoubles.LivePublisher();
-        lifecycle = new ActivityLifecycle(
-                activities, stats, relations, publisher, live, AT_START, new Random(7));
+        lifecycle = new ActivityLifecycle(activities, stats, relations, publisher,
+                new com.runtrack.course.internal.application.ActivityArchival(
+                        points, new CourseDoubles.Archive(), AT_START),
+                live, AT_START, new Random(7));
         var queries = new ActivityQueries(activities, stats, relations, users, AN_HOUR_LATER);
         var ingestion = new PointIngestion(activities, stats, points, queries, live, AN_HOUR_LATER);
         idempotent = new IdempotentIngestion(

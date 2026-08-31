@@ -45,17 +45,20 @@ public class ActivityLifecycle {
     private final ActivityStatsStore stats;
     private final ViewerRelationResolver relations;
     private final ApplicationEventPublisher events;
+    private final ActivityArchival archival;
     private final LiveActivityPublisher live;
     private final Clock clock;
     private final RandomGenerator random;
 
     public ActivityLifecycle(ActivityRepository activities, ActivityStatsStore stats,
             ViewerRelationResolver relations, ApplicationEventPublisher events,
-            LiveActivityPublisher live, Clock clock, RandomGenerator random) {
+            ActivityArchival archival, LiveActivityPublisher live, Clock clock,
+            RandomGenerator random) {
         this.activities = activities;
         this.stats = stats;
         this.relations = relations;
         this.events = events;
+        this.archival = archival;
         this.live = live;
         this.clock = clock;
         this.random = random;
@@ -105,6 +108,9 @@ public class ActivityLifecycle {
         Instant now = clock.instant();
         activity.finish(now);
         activities.save(activity);
+        // Avant l'événement : les écouteurs — le fil, les notifications — parlent d'une course
+        // terminée, et celle-ci doit déjà porter ses splits quand ils la relisent.
+        archival.freeze(activity);
 
         StatsAccumulator accumulator = stats.find(id).orElseGet(StatsAccumulator::empty);
         events.publishEvent(new ActivityFinished(id, ownerId, effectiveScopeOf(activity).name(),
@@ -145,6 +151,7 @@ public class ActivityLifecycle {
     public void delete(UserId ownerId, ActivityId id) {
         requireOwned(ownerId, id);
         stats.delete(id);
+        archival.purge(id);
         activities.delete(id);
         events.publishEvent(new ActivityDeleted(id, clock.instant(), correlationId()));
     }
