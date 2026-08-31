@@ -14,7 +14,8 @@ import org.springframework.context.annotation.Configuration;
  * partout ailleurs, et de figer le temps en test avec {@code Clock.fixed}.
  */
 @Configuration
-@EnableConfigurationProperties(com.runtrack.platform.cache.CacheProperties.class)
+@EnableConfigurationProperties({com.runtrack.platform.cache.CacheProperties.class,
+        com.runtrack.platform.ratelimit.RateLimitProperties.class})
 public class PlatformConfiguration {
 
     @Bean

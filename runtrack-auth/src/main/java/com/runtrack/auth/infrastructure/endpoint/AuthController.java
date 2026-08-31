@@ -4,6 +4,10 @@ import com.runtrack.auth.usecases.service.AuthenticatedSession;
 import com.runtrack.auth.usecases.service.Authentication;
 import com.runtrack.auth.usecases.model.credential.Password;
 import com.runtrack.auth.infrastructure.dto.AuthDtos;
+import com.runtrack.platform.ratelimit.RateLimitProperties;
+import com.runtrack.platform.ratelimit.RateLimiter;
+import com.runtrack.shared.error.TooManyRequestsException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,15 +22,29 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Les points d'entrée d'authentification, tous publics : ce sont eux qui délivrent la
  * preuve que les autres exigent.
+ *
+ * <p><b>La connexion est bridée sur deux axes</b> (§9), et il en faut deux. Par adresse IP, contre
+ * le script qui essaie mille comptes depuis une machine ; par compte, contre celui qui essaie
+ * mille mots de passe sur une adresse connue en tournant les IP. Chacun pris seul laisse passer
+ * l'autre attaque.
+ *
+ * <p>Le compteur par compte est armé <b>avant</b> la vérification du mot de passe, et donc aussi
+ * par les tentatives qui échouent : ne compter que les succès reviendrait à ne rien compter.
  */
 @RestController
 @RequestMapping("/api/v1/auth")
 class AuthController {
 
     private final Authentication authentication;
+    private final RateLimiter rateLimiter;
+    private final RateLimitProperties quotas;
 
-    AuthController(Authentication authentication) {
+    AuthController(Authentication authentication, RateLimiter rateLimiter,
+            RateLimitProperties quotas) {
+
         this.authentication = authentication;
+        this.rateLimiter = rateLimiter;
+        this.quotas = quotas;
     }
 
     @PostMapping("/signup")
@@ -38,8 +56,44 @@ class AuthController {
     }
 
     @PostMapping("/login")
-    AuthDtos.SessionResponse logIn(@Valid @RequestBody AuthDtos.LogInRequest request) {
+    AuthDtos.SessionResponse logIn(HttpServletRequest http,
+            @Valid @RequestBody AuthDtos.LogInRequest request) {
+
+        requireQuota("login:ip:" + clientAddressOf(http), quotas.loginPerIp());
+        requireQuota("login:account:" + request.email().toLowerCase(java.util.Locale.ROOT),
+                quotas.loginPerAccount());
         return toResponse(authentication.logIn(request.email(), new Password(request.password())));
+    }
+
+    /**
+     * Le même message quel que soit l'axe dépassé.
+     *
+     * <p>Distinguer « trop d'essais depuis cette adresse » de « trop d'essais sur ce compte »
+     * dirait à un attaquant lequel des deux il a saturé — et confirmerait au passage que le compte
+     * existe.
+     */
+    private void requireQuota(String key, int limit) {
+        if (!rateLimiter.tryAcquire(key, limit, quotas.loginWindow())) {
+            throw new TooManyRequestsException("TOO_MANY_ATTEMPTS",
+                    "Trop de tentatives, réessayez dans quelques minutes");
+        }
+    }
+
+    /**
+     * L'adresse du client, en tenant compte du proxy.
+     *
+     * <p>{@code X-Forwarded-For} est lu parce que l'application tourne derrière un ingress, où
+     * {@code getRemoteAddr()} rendrait l'adresse du proxy — c'est-à-dire la même pour tout le
+     * monde, ce qui ferait du compteur par IP un compteur global. On ne garde que la première
+     * valeur, la seule que l'ingress ajoute lui-même.
+     */
+    private static String clientAddressOf(HttpServletRequest http) {
+        String forwarded = http.getHeader("X-Forwarded-For");
+        if (forwarded == null || forwarded.isBlank()) {
+            return http.getRemoteAddr();
+        }
+        int firstSeparator = forwarded.indexOf(',');
+        return (firstSeparator < 0 ? forwarded : forwarded.substring(0, firstSeparator)).trim();
     }
 
     @PostMapping("/refresh")

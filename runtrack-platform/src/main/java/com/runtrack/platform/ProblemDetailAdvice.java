@@ -4,6 +4,7 @@ import com.runtrack.shared.error.ConflictException;
 import com.runtrack.shared.error.DomainException;
 import com.runtrack.shared.error.ForbiddenException;
 import com.runtrack.shared.error.NotFoundException;
+import com.runtrack.shared.error.TooManyRequestsException;
 import java.net.URI;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -39,6 +40,11 @@ public class ProblemDetailAdvice {
     @ExceptionHandler(ForbiddenException.class)
     ProblemDetail onForbidden(ForbiddenException exception) {
         return problem(HttpStatus.FORBIDDEN, exception);
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    ProblemDetail onQuotaExceeded(TooManyRequestsException exception) {
+        return problem(HttpStatus.TOO_MANY_REQUESTS, exception);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

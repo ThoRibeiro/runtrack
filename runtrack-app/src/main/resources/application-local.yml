@@ -1,0 +1,31 @@
+# Profil de développement. Chargé par défaut (`spring.profiles.default: local`).
+#
+# Ce qui le distingue : rien n'est envoyé à l'extérieur, et les journaux se lisent à l'œil.
+
+spring:
+  jpa:
+    # Utile pour comprendre une requête, insupportable en production.
+    show-sql: false
+
+runtrack:
+  push:
+    # L'envoyeur qui écrit ce qu'il aurait envoyé : développer les notifications sans compte
+    # Firebase est une exigence explicite du §7.
+    provider: logging
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://localhost:3000
+
+logging:
+  level:
+    com.runtrack: DEBUG
+  # Journaux lisibles par un humain : le format structuré n'a d'intérêt que là où une machine
+  # les lit.
+  pattern:
+    correlation: "[%X{correlationId:-               }] "
+
+management:
+  endpoint:
+    health:
+      show-details: always

@@ -56,6 +56,17 @@ runtrack:
     # EventPublicationRetry : c'est une règle, pas un réglage d'exploitation.
     retry-interval: 1m
 
+  ratelimit:
+    # §9. L'écart entre les deux premiers est délibéré : une adresse IP est partagée — un
+    # foyer, un bureau, un opérateur derrière un NAT —, un compte ne l'est pas.
+    login-per-ip: 200
+    login-per-account: 10
+    login-window: 15m
+    ingest-batches-per-activity: 60
+    ingest-window: 1m
+    comments-per-author: 20
+    comments-window: 1h
+
   push:
     # Le choix de l'envoyeur se fait ici, pas dans un `if` : `logging` écrit ce qu'il aurait
     # envoyé, `fcm` parle à Firebase. Le défaut est volontairement le premier — un poste de
@@ -127,9 +138,31 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,modulith,eventpublications
+        include: health,info,prometheus,modulith,eventpublications,metrics
   endpoint:
     health:
       probes:
+        # Liveness et readiness séparées (§12) : Kubernetes redémarre un pod dont la liveness
+        # tombe, mais se contente de le sortir du service si sa readiness tombe. Les confondre
+        # fait redémarrer une instance parce que Dragonfly rame, ce qui n'arrange rien.
         enabled: true
       show-details: when-authorized
+      group:
+        # La liveness ne regarde que la JVM : dépendre de la base y ferait redémarrer tous les
+        # pods au premier hoquet de Postgres, en cascade.
+        liveness:
+          include: livenessState
+        # La readiness regarde ce sans quoi l'instance ne peut pas servir.
+        readiness:
+          include: readinessState,db,redis
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    tags:
+      application: runtrack
+  observations:
+    key-values:
+      application: runtrack

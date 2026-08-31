@@ -1,0 +1,47 @@
+== RunTrackApplication
+plantuml::components.puml[,,format=svg]
+
+== Openapi
+plantuml::module-openapi.puml[,,format=svg]
+include::module-openapi.adoc[]
+
+== shared
+plantuml::module-shared.puml[,,format=svg]
+include::module-shared.adoc[]
+
+== platform
+plantuml::module-platform.puml[,,format=svg]
+include::module-platform.adoc[]
+
+== user
+plantuml::module-user.puml[,,format=svg]
+include::module-user.adoc[]
+
+== auth
+plantuml::module-auth.puml[,,format=svg]
+include::module-auth.adoc[]
+
+== social
+plantuml::module-social.puml[,,format=svg]
+include::module-social.adoc[]
+
+== course
+plantuml::module-course.puml[,,format=svg]
+include::module-course.adoc[]
+
+== engagement
+plantuml::module-engagement.puml[,,format=svg]
+include::module-engagement.adoc[]
+
+== sharing
+plantuml::module-sharing.puml[,,format=svg]
+include::module-sharing.adoc[]
+
+== feed
+plantuml::module-feed.puml[,,format=svg]
+include::module-feed.adoc[]
+
+== notification
+plantuml::module-notification.puml[,,format=svg]
+include::module-notification.adoc[]
+

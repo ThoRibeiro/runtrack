@@ -5,6 +5,9 @@ import com.runtrack.engagement.usecases.model.interaction.Comment;
 import com.runtrack.engagement.usecases.model.interaction.CommentId;
 import com.runtrack.engagement.usecases.model.interaction.Like;
 import com.runtrack.engagement.infrastructure.dto.EngagementDtos;
+import com.runtrack.platform.ratelimit.RateLimitProperties;
+import com.runtrack.platform.ratelimit.RateLimiter;
+import com.runtrack.shared.error.TooManyRequestsException;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.id.ActivityId;
 import com.runtrack.shared.id.UserId;
@@ -37,9 +40,15 @@ import org.springframework.web.bind.annotation.RestController;
 class EngagementController {
 
     private final Engagement engagement;
+    private final RateLimiter rateLimiter;
+    private final RateLimitProperties quotas;
 
-    EngagementController(Engagement engagement) {
+    EngagementController(Engagement engagement, RateLimiter rateLimiter,
+            RateLimitProperties quotas) {
+
         this.engagement = engagement;
+        this.rateLimiter = rateLimiter;
+        this.quotas = quotas;
     }
 
     @PostMapping("/activities/{id}/likes")
@@ -70,6 +79,7 @@ class EngagementController {
             @PathVariable String id,
             @Valid @RequestBody EngagementDtos.PostCommentRequest request) {
 
+        requireQuota(asViewer(viewer));
         return toResponse(engagement.comment(asViewer(viewer), ActivityId.of(id), request.body(),
                 Optional.ofNullable(request.parentId()).map(CommentId::of)));
     }
@@ -101,6 +111,23 @@ class EngagementController {
     ResponseEntity<Void> delete(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         engagement.delete(asViewer(viewer), CommentId.of(id));
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Le quota d'écriture de l'auteur — bridé par <b>auteur</b> et non par course : ce qu'on
+     * arrête, c'est quelqu'un qui inonde, et changer de course ne doit pas lui rendre son quota.
+     *
+     * <p>Un anonyme n'est pas bridé ici : il n'a de toute façon pas le droit de commenter, et
+     * {@code Engagement} le refuse avant que la question du quota se pose.
+     */
+    private void requireQuota(Viewer viewer) {
+        viewer.userId().ifPresent(author -> {
+            if (!rateLimiter.tryAcquire("comment:" + author,
+                    quotas.commentsPerAuthor(), quotas.commentsWindow())) {
+                throw new TooManyRequestsException("TOO_MANY_COMMENTS",
+                        "Trop de commentaires publiés, réessayez plus tard");
+            }
+        });
     }
 
     /** Un lecteur absent est un anonyme, pas une erreur : certaines courses sont publiques. */

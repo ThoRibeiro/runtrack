@@ -6,7 +6,7 @@ package com.runtrack.shared.error;
  * message ou qu'on remplace un 409 par un 422.
  */
 public abstract sealed class DomainException extends RuntimeException
-        permits NotFoundException, ConflictException, ForbiddenException {
+        permits NotFoundException, ConflictException, ForbiddenException, TooManyRequestsException {
 
     private final String code;
 

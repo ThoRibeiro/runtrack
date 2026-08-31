@@ -40,11 +40,24 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-jdbc</artifactId>
     </dependency>
+    <!-- Pour lire le Viewer que le filtre d'auth a posé, et rien d'autre : l'identifiant de
+         corrélation porte le compte auquel il se rapporte, sans quoi il faut recouper deux
+         journaux pour savoir qui a fait quoi. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
     <!-- Actuator, et pas micrometer-core seul : c'est lui qui fournit un MeterRegistry.
          Les métriques de cache seraient sinon écrites nulle part. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <!-- Le registre Prometheus n'est pas dans l'actuator : sans lui, /actuator/prometheus
+         est simplement absent, et l'exposer dans la configuration ne le fait pas exister. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

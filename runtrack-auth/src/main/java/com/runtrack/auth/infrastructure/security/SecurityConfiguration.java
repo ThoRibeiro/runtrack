@@ -67,11 +67,35 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v1/activities/*/comments").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/activities").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
+                        // Les métriques : aucune donnée personnelle — les URI y sont des
+                        // gabarits, `/api/v1/activities/{id}`, jamais des identifiants — et la
+                        // vraie protection est ailleurs : en production, l'actuator écoute sur un
+                        // port séparé que l'ingress n'expose pas.
+                        .requestMatchers("/actuator/prometheus").permitAll()
                         // La description de l'API est un contrat, pas un secret : ce qu'elle
                         // décrit reste protégé par les règles ci-dessus.
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
                         .anyRequest().authenticated())
+                // En-têtes de sécurité (§9). Boot en pose déjà plusieurs ; ceux-ci sont ceux qui
+                // manquent et qui comptent pour une API : dire au navigateur de ne rien deviner,
+                // de ne pas fuiter le chemin dans le Referer, et d'exiger HTTPS.
+                .headers(headers -> headers
+                        .contentTypeOptions(withDefaults -> { })
+                        .referrerPolicy(policy -> policy.policy(
+                                org.springframework.security.web.header.writers
+                                        .ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(java.time.Duration.ofDays(365).toSeconds()))
+                        // Une API ne rend jamais de HTML : une politique qui interdit tout est la
+                        // bonne, et elle rend inoffensif un jour où une réponse en rendrait.
+                        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'none'"))
+                        .frameOptions(frames -> frames.deny()))
+                // Sans argument : Spring Security va chercher le bean nommé exactement
+                // `corsConfigurationSource`. L'injecter par type échouerait — Spring MVC en
+                // expose un second, son introspecteur de handlers.
+                .cors(org.springframework.security.config.Customizer.withDefaults())
                 .exceptionHandling(handling -> handling.authenticationEntryPoint(entryPoint))
                 .addFilterBefore(viewerFilter,
                         org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)

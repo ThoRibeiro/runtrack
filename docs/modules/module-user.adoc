@@ -1,0 +1,19 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.runtrack.user`
+|Spring components
+|_Services_
+
+* `c.r.u.UserApi` (via `c.r.u.usecases.service.UserApiAdapter`)
+
+_Others_
+
+* `c.r.u.UserApi` (via `c.r.u.infrastructure.cache.CachedUserApi`)
+|Bean references
+|* `c.r.p.cache.CacheGateway` (in platform)
+* `c.r.p.cache.CacheProperties` (in platform)
+|Events listened to
+|* `c.r.u.event.UserDeleted` 
+* `c.r.u.event.UserProfileUpdated` 
+|===

@@ -1,0 +1,39 @@
+# Profil de production.
+#
+# Aucun secret ici : tout ce qui en est un arrive par variable d'environnement (§9), et
+# l'application refuse de démarrer plutôt que de deviner une valeur manquante.
+
+spring:
+  jpa:
+    # Le schéma appartient à Flyway. `validate` fait échouer le démarrage si une entité et sa
+    # table divergent, plutôt que de laisser Hibernate « réparer » en silence.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+runtrack:
+  push:
+    provider: fcm
+  cors:
+    # Vide tant que le domaine du front n'est pas connu : on refuse par défaut, on ouvre ensuite.
+    allowed-origins: ${RUNTRACK_CORS_ORIGINS:}
+
+logging:
+  # Journaux JSON structurés (§12) : ce sont des machines qui les lisent, et un message
+  # multiligne y devient dix entrées sans rapport.
+  structured:
+    format:
+      console: ecs
+  level:
+    root: INFO
+    com.runtrack: INFO
+
+management:
+  endpoint:
+    health:
+      # Jamais `always` en production : le détail d'un health check nomme les dépendances, leurs
+      # hôtes et parfois leurs versions.
+      show-details: when-authorized
+  server:
+    # Les endpoints d'exploitation sur un port séparé, que l'ingress n'expose pas.
+    port: 8081

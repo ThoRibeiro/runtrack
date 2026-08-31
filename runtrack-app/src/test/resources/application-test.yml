@@ -27,3 +27,11 @@ runtrack:
     # après une ingestion doit rester de l'ordre de la centaine de millisecondes.
     poll-timeout: 100ms
     stream-retention: 1m
+
+  ratelimit:
+    # Le compteur par adresse IP est désarmé en test, et seulement lui. MockMvc fait partir
+    # toutes les requêtes de 127.0.0.1 : le quota d'une adresse devient celui de la suite
+    # entière, et les tests se bloquent les uns les autres pour une raison qui n'a rien à voir
+    # avec ce qu'ils vérifient. Les autres quotas restent à leur valeur de production — ils
+    # portent sur un compte, une course ou un auteur, donc ils sont déjà isolés par test.
+    login-per-ip: 100000

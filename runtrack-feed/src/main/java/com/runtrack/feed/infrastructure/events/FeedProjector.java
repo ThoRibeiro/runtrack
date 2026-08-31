@@ -12,6 +12,7 @@ import com.runtrack.engagement.event.ActivityUnliked;
 import com.runtrack.engagement.event.CommentDeleted;
 import com.runtrack.engagement.event.CommentReplied;
 import com.runtrack.feed.usecases.port.FeedProjection;
+import com.runtrack.platform.observability.CorrelationId;
 import com.runtrack.feed.usecases.model.entry.FeedEntry;
 import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.shared.id.ActivityId;
@@ -31,6 +32,10 @@ import org.springframework.stereotype.Component;
  * <p>{@code @ApplicationModuleListener} : après commit, en asynchrone, persisté avant traitement et
  * rejoué s'il n'aboutit pas. Le fil est donc en retard de quelques millisecondes sur la vérité —
  * ce que le §10 accepte pour une vue de lecture — mais jamais en désaccord durable avec elle.
+ *
+ * <p>Chaque écouteur rouvre la portée de corrélation à partir de l'identifiant que son événement
+ * transporte (§12) : sans ce geste, une ligne de fil apparue de travers n'aurait aucun lien
+ * traçable avec la requête qui l'a provoquée.
  *
  * <p>Les ajustements de compteur sont volontairement <b>non idempotents</b> : {@code +1} rejoué
  * compte deux fois. Le registre ne rejoue que ce qui n'a pas abouti, donc ce qui n'a pas été
@@ -52,53 +57,53 @@ class FeedProjector {
 
     @ApplicationModuleListener
     void onActivityStarted(ActivityStarted event) {
-        projectFrom(event.activityId());
+        CorrelationId.resume(event.correlationId(), () -> projectFrom(event.activityId()));
     }
 
     @ApplicationModuleListener
     void onActivityFinished(ActivityFinished event) {
-        projectFrom(event.activityId());
+        CorrelationId.resume(event.correlationId(), () -> projectFrom(event.activityId()));
     }
 
     /** Une course abandonnée sort du fil : elle est conservée, mais hors de tout affichage (§3). */
     @ApplicationModuleListener
     void onActivityDiscarded(ActivityDiscarded event) {
-        projection.remove(event.activityId());
+        CorrelationId.resume(event.correlationId(), () -> projection.remove(event.activityId()));
     }
 
     @ApplicationModuleListener
     void onActivityDeleted(ActivityDeleted event) {
-        projection.remove(event.activityId());
+        CorrelationId.resume(event.correlationId(), () -> projection.remove(event.activityId()));
     }
 
     @ApplicationModuleListener
     void onVisibilityChanged(ActivityVisibilityChanged event) {
-        projection.updateVisibility(event.activityId(), event.effectiveScope());
+        CorrelationId.resume(event.correlationId(), () -> projection.updateVisibility(event.activityId(), event.effectiveScope()));
     }
 
     @ApplicationModuleListener
     void onActivityLiked(ActivityLiked event) {
-        projection.adjustLikes(event.activityId(), 1);
+        CorrelationId.resume(event.correlationId(), () -> projection.adjustLikes(event.activityId(), 1));
     }
 
     @ApplicationModuleListener
     void onActivityUnliked(ActivityUnliked event) {
-        projection.adjustLikes(event.activityId(), -1);
+        CorrelationId.resume(event.correlationId(), () -> projection.adjustLikes(event.activityId(), -1));
     }
 
     @ApplicationModuleListener
     void onActivityCommented(ActivityCommented event) {
-        projection.adjustComments(event.activityId(), 1);
+        CorrelationId.resume(event.correlationId(), () -> projection.adjustComments(event.activityId(), 1));
     }
 
     @ApplicationModuleListener
     void onCommentReplied(CommentReplied event) {
-        projection.adjustComments(event.activityId(), 1);
+        CorrelationId.resume(event.correlationId(), () -> projection.adjustComments(event.activityId(), 1));
     }
 
     @ApplicationModuleListener
     void onCommentDeleted(CommentDeleted event) {
-        projection.adjustComments(event.activityId(), -1);
+        CorrelationId.resume(event.correlationId(), () -> projection.adjustComments(event.activityId(), -1));
     }
 
     /**

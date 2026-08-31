@@ -1,0 +1,7 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.runtrack.sharing`
+|Bean references
+|* `c.r.c.CourseApi` (in course)
+|===

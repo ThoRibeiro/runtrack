@@ -1,0 +1,9 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.runtrack.auth`
+|Bean references
+|* `c.r.p.ratelimit.RateLimiter` (in platform)
+* `c.r.p.ratelimit.RateLimitProperties` (in platform)
+* `c.r.u.UserApi` (in user)
+|===

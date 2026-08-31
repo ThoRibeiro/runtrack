@@ -45,7 +45,8 @@ class ResilientPointIngestionTest {
         private int attempts;
 
         FlakyIngestion(int failures) {
-            super(null, null, null, null, null, CLOCK);
+            super(null, null, null, null, null, CLOCK,
+                    new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
             this.failures = failures;
         }
 

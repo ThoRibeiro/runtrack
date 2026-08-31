@@ -12,6 +12,8 @@ import com.runtrack.notification.usecases.model.push.PushMessage;
 import com.runtrack.shared.id.UserId;
 import com.runtrack.user.UserApi;
 import com.runtrack.user.UserSummary;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
@@ -53,15 +55,24 @@ public class PushDelivery {
     private final PushSender sender;
     private final UserApi users;
     private final java.time.Clock clock;
+    private final Counter delivered;
+    private final Counter failed;
 
     public PushDelivery(DeviceTokenRepository devices, NotificationPreferencesRepository preferences,
-            PushThrottle throttle, PushSender sender, UserApi users, java.time.Clock clock) {
+            PushThrottle throttle, PushSender sender, UserApi users, java.time.Clock clock,
+            MeterRegistry meters) {
         this.devices = devices;
         this.preferences = preferences;
         this.throttle = throttle;
         this.sender = sender;
         this.users = users;
         this.clock = clock;
+        this.delivered = Counter.builder("runtrack.push.delivered")
+                .description("Appareils que le service de push a acceptés").register(meters);
+        // Le §12 le demande nommément, et pour une bonne raison : un push qui n'arrive plus est
+        // invisible côté serveur — personne ne se plaint d'une notification qu'il n'a pas reçue.
+        this.failed = Counter.builder("runtrack.push.failed")
+                .description("Appareils que le service de push a refusés").register(meters);
     }
 
     /**
@@ -112,6 +123,8 @@ public class PushDelivery {
                 return;
             }
             PushSender.Result result = sender.send(targets, message);
+            delivered.increment(result.delivered());
+            failed.increment(targets.size() - result.delivered());
             invalid.addAll(result.invalidTokens());
         });
 

@@ -14,6 +14,9 @@ import com.runtrack.course.usecases.model.track.TrackPointFilter;
 import com.runtrack.shared.error.NotFoundException;
 import com.runtrack.shared.id.ActivityId;
 import com.runtrack.shared.id.UserId;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,19 +54,41 @@ public class PointIngestion {
     private final ActivityQueries queries;
     private final LiveActivityPublisher live;
     private final Clock clock;
+    private final Counter accepted;
+    private final Counter rejected;
+    private final Timer ingestion;
 
     public PointIngestion(ActivityRepository activities, ActivityStatsStore stats,
-            TrackPointRepository points, ActivityQueries queries, LiveActivityPublisher live, Clock clock) {
+            TrackPointRepository points, ActivityQueries queries, LiveActivityPublisher live,
+            Clock clock, MeterRegistry meters) {
+
         this.activities = activities;
         this.stats = stats;
         this.points = points;
         this.queries = queries;
         this.live = live;
         this.clock = clock;
+        this.accepted = Counter.builder("runtrack.points.accepted")
+                .description("Points de trace retenus").register(meters);
+        this.rejected = Counter.builder("runtrack.points.rejected")
+                .description("Points écartés par le filtre du domaine").register(meters);
+        // La latence de bout en bout du chemin chaud : c'est elle qui dit si un coureur voit sa
+        // trace avancer, et le taux de rejet à côté dit si ce qu'il envoie est exploitable.
+        this.ingestion = Timer.builder("runtrack.ingestion")
+                .description("Durée d'un lot, de la réception à la publication").register(meters);
     }
 
     @Transactional
     public IngestionResult ingest(UserId ownerId, ActivityId activityId, List<TrackPoint> batch) {
+        Timer.Sample sample = Timer.start();
+        try {
+            return measured(ownerId, activityId, batch);
+        } finally {
+            sample.stop(ingestion);
+        }
+    }
+
+    private IngestionResult measured(UserId ownerId, ActivityId activityId, List<TrackPoint> batch) {
         Activity activity = activities.findById(activityId)
                 .orElseThrow(() -> new NotFoundException("ACTIVITY_NOT_FOUND", "Course introuvable"));
         if (!activity.ownerId().equals(ownerId)) {
@@ -101,6 +126,9 @@ public class PointIngestion {
             points.appendAll(activityId, accepted);
             stats.save(activityId, accumulator);
         }
+
+        this.accepted.increment(accepted.size());
+        this.rejected.increment(rejected.size());
 
         ActivityStats summary = queries.statsOf(activity);
         if (!accepted.isEmpty()) {

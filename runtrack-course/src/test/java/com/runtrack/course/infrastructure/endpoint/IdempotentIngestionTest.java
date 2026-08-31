@@ -55,7 +55,8 @@ class IdempotentIngestionTest {
                         points, new CourseDoubles.Archive(), AT_START),
                 live, AT_START, new Random(7));
         var queries = new ActivityQueries(activities, stats, relations, users, AN_HOUR_LATER);
-        var ingestion = new PointIngestion(activities, stats, points, queries, live, AN_HOUR_LATER);
+        var ingestion = new PointIngestion(activities, stats, points, queries, live, AN_HOUR_LATER,
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
         idempotent = new IdempotentIngestion(
                 new ResilientPointIngestion(ingestion), keys, new ObjectMapper());
     }

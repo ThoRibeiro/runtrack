@@ -1,0 +1,21 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.runtrack.social`
+|Spring components
+|_Services_
+
+* `c.r.s.SocialApi` (via `c.r.s.usecases.service.SocialApiAdapter`)
+
+_Others_
+
+* `c.r.s.SocialApi` (via `c.r.s.infrastructure.cache.CachedSocialApi`)
+|Bean references
+|* `c.r.p.cache.CacheGateway` (in platform)
+* `c.r.p.cache.CacheProperties` (in platform)
+* `c.r.u.UserApi` (in user)
+|Events listened to
+|* `c.r.s.event.FollowDropped` 
+* `c.r.s.event.UserBlocked` 
+* `c.r.s.event.FollowAccepted` 
+|===

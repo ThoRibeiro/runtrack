@@ -1,0 +1,17 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.runtrack.notification`
+|Bean references
+|* `c.r.p.realtime.LiveChannel` (in platform)
+* `c.r.s.SocialApi` (in social)
+* `c.r.u.UserApi` (in user)
+|Events listened to
+|* `c.r.e.event.ActivityCommented` (async) 
+* `c.r.c.event.ActivityFinished` (async) 
+* `c.r.e.event.ActivityLiked` (async) 
+* `c.r.c.event.ActivityStarted` (async) 
+* `c.r.e.event.CommentReplied` (async) 
+* `c.r.s.event.FollowAccepted` (async) 
+* `c.r.s.event.FollowRequested` (async) 
+|===

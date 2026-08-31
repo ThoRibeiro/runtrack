@@ -49,7 +49,8 @@ class PushDeliveryTest {
         preferences = new NotificationDoubles.Preferences();
         sender = new NotificationDoubles.Sender();
         throttle = new NotificationDoubles.Throttle();
-        delivery = new PushDelivery(devices, preferences, throttle, sender, new NamingUsers(), CLOCK);
+        delivery = new PushDelivery(devices, preferences, throttle, sender, new NamingUsers(), CLOCK,
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
     }
 
     /** Ne répond qu'à la seule question que le push pose : comment s'appelle l'acteur. */

@@ -60,7 +60,8 @@ class PointIngestionTest {
                 new ActivityArchival(points, new CourseDoubles.Archive(), AT_START),
                 live, AT_START, new Random(7));
         var queries = new ActivityQueries(activities, stats, relations, users, AN_HOUR_LATER);
-        ingestion = new PointIngestion(activities, stats, points, queries, live, AN_HOUR_LATER);
+        ingestion = new PointIngestion(activities, stats, points, queries, live, AN_HOUR_LATER,
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
     }
 
     private Activity aRun() {
@@ -262,7 +263,8 @@ class PointIngestionTest {
         var queries = new ActivityQueries(activities, scratchStats, relations, users, AN_HOUR_LATER);
 
         return new PointIngestion(activities, scratchStats, scratchPoints, queries,
-                new CourseDoubles.LivePublisher(), AN_HOUR_LATER)
+                new CourseDoubles.LivePublisher(), AN_HOUR_LATER,
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry())
                 .ingest(MARIE, fresh.id(), allPoints)
                 .stats();
     }

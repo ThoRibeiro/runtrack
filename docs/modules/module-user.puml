@@ -1,0 +1,33 @@
+@startuml
+title <size:24>user</size>
+
+set separator none
+top to bottom direction
+
+<style>
+  root {
+    BackgroundColor: #ffffff
+    FontColor: #444444
+  }
+</style>
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Component>
+
+System_Boundary("RunTrackApplication_boundary", "RunTrackApplication", $tags="") {
+  Container_Boundary("RunTrackApplication.RunTrackApplication_boundary", "RunTrackApplication", $tags="") {
+    Component(RunTrackApplication.RunTrackApplication.shared, "shared", $techn="Module", $descr="", $tags="", $link="")
+    Component(RunTrackApplication.RunTrackApplication.platform, "platform", $techn="Module", $descr="", $tags="", $link="")
+    Component(RunTrackApplication.RunTrackApplication.user, "user", $techn="Module", $descr="", $tags="", $link="")
+  }
+
+}
+
+Rel(RunTrackApplication.RunTrackApplication.platform, RunTrackApplication.RunTrackApplication.shared, "depends on", $techn="", $tags="", $link="")
+Rel(RunTrackApplication.RunTrackApplication.user, RunTrackApplication.RunTrackApplication.shared, "depends on", $techn="", $tags="", $link="")
+Rel(RunTrackApplication.RunTrackApplication.user, RunTrackApplication.RunTrackApplication.platform, "uses", $techn="", $tags="", $link="")
+
+SHOW_LEGEND(true)
+hide stereotypes
+@enduml

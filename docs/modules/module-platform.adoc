@@ -1,0 +1,23 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.runtrack.platform`
+|Spring components
+|_Configuration properties_
+
+* `c.r.p.cache.CacheProperties`
+* `c.r.p.ratelimit.RateLimitProperties`
+* `c.r.p.realtime.RealtimeProperties`
+
+_Others_
+
+* `c.r.p.PlatformConfiguration`
+* `c.r.p.ProblemDetailAdvice`
+* `c.r.p.cache.CacheGateway` (via `c.r.p.cache.RedisCacheGateway`)
+* `c.r.p.events.EventPublicationRetry`
+* `c.r.p.events.EventPublications`
+* `c.r.p.events.EventPublicationsEndpoint`
+* `c.r.p.ratelimit.RateLimiter` (via `c.r.p.ratelimit.RedisRateLimiter`)
+* `c.r.p.realtime.LiveChannel`
+* `c.r.p.realtime.SseRegistry`
+|===

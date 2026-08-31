@@ -7,6 +7,7 @@ import com.runtrack.engagement.event.ActivityLiked;
 import com.runtrack.engagement.event.CommentReplied;
 import com.runtrack.notification.usecases.service.NotificationDispatch;
 import com.runtrack.notification.usecases.service.PushDelivery;
+import com.runtrack.platform.observability.CorrelationId;
 import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.social.event.FollowAccepted;
 import com.runtrack.social.event.FollowRequested;
@@ -32,6 +33,11 @@ import org.springframework.stereotype.Component;
  * <p>L'enchaînement, lui, compte : le push part <b>après</b> que la transaction d'écriture s'est
  * refermée, et seulement pour ce qui a réellement été écrit. C'est ainsi que le §7 obtient son
  * « aucun appel réseau dans la transaction », et qu'un rejeu ne repousse rien.
+ *
+ * <p>Chaque écouteur <b>rouvre la portée de corrélation</b> à partir de l'identifiant que son
+ * événement transporte (§12). Sans ce geste, la notification envoyée n'aurait aucun lien traçable
+ * avec la requête qui a démarré la course : un {@code ScopedValue} ne franchit pas un changement
+ * de fil, et c'est en production qu'on le découvre.
  */
 @Component
 class NotificationListeners {
@@ -46,41 +52,53 @@ class NotificationListeners {
 
     @ApplicationModuleListener
     void onActivityStarted(ActivityStarted event) {
-        push.push(dispatch.runStarted(event.activityId(), event.ownerId(),
-                AudienceScope.valueOf(event.effectiveScope()), event.at()));
+        CorrelationId.resume(event.correlationId(), () ->
+                push.push(dispatch.runStarted(event.activityId(), event.ownerId(),
+                        AudienceScope.valueOf(event.effectiveScope()), event.at())));
     }
 
     @ApplicationModuleListener
     void onActivityFinished(ActivityFinished event) {
-        push.push(dispatch.runFinished(event.activityId(), event.ownerId(),
-                AudienceScope.valueOf(event.effectiveScope()), event.at()));
+        CorrelationId.resume(event.correlationId(), () ->
+                push.push(dispatch.runFinished(event.activityId(), event.ownerId(),
+                        AudienceScope.valueOf(event.effectiveScope()), event.at())));
     }
 
     @ApplicationModuleListener
     void onActivityLiked(ActivityLiked event) {
-        push.push(dispatch.activityLiked(event.activityId(), event.ownerId(), event.likerId(),
-                event.at()));
+        CorrelationId.resume(event.correlationId(), () ->
+                push.push(dispatch.activityLiked(event.activityId(), event.ownerId(),
+                        event.likerId(), event.at())));
     }
 
     @ApplicationModuleListener
     void onActivityCommented(ActivityCommented event) {
-        push.push(dispatch.activityCommented(event.activityId(), event.ownerId(), event.authorId(),
-                event.commentId(), event.at()));
+        CorrelationId.resume(event.correlationId(), () ->
+                push.push(dispatch.activityCommented(event.activityId(), event.ownerId(),
+                        event.authorId(), event.commentId(), event.at())));
     }
 
     @ApplicationModuleListener
     void onCommentReplied(CommentReplied event) {
-        push.push(dispatch.commentReplied(event.activityId(), event.parentAuthorId(),
-                event.authorId(), event.commentId(), event.at()));
+        CorrelationId.resume(event.correlationId(), () ->
+                push.push(dispatch.commentReplied(event.activityId(), event.parentAuthorId(),
+                        event.authorId(), event.commentId(), event.at())));
     }
 
     @ApplicationModuleListener
     void onFollowAccepted(FollowAccepted event) {
-        push.push(dispatch.followAccepted(event.followerId(), event.followeeId(), event.at()));
+        // Les événements de `social` ne portent pas d'identifiant de corrélation : leur contrat
+        // date d'avant le §12. La portée est rouverte quand même, avec un identifiant tiré ici —
+        // les journaux de ce traitement restent liés entre eux, à défaut de l'être à la requête.
+        CorrelationId.resume(null, () ->
+                push.push(dispatch.followAccepted(event.followerId(), event.followeeId(),
+                        event.at())));
     }
 
     @ApplicationModuleListener
     void onFollowRequested(FollowRequested event) {
-        push.push(dispatch.followRequested(event.followerId(), event.followeeId(), event.at()));
+        CorrelationId.resume(null, () ->
+                push.push(dispatch.followRequested(event.followerId(), event.followeeId(),
+                        event.at())));
     }
 }

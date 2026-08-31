@@ -1,0 +1,20 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.runtrack.feed`
+|Bean references
+|* `c.r.c.CourseApi` (in course)
+* `c.r.s.SocialApi` (in social)
+* `c.r.u.UserApi` (in user)
+|Events listened to
+|* `c.r.e.event.ActivityCommented` (async) 
+* `c.r.c.event.ActivityDeleted` (async) 
+* `c.r.c.event.ActivityDiscarded` (async) 
+* `c.r.c.event.ActivityFinished` (async) 
+* `c.r.e.event.ActivityLiked` (async) 
+* `c.r.c.event.ActivityStarted` (async) 
+* `c.r.e.event.ActivityUnliked` (async) 
+* `c.r.e.event.CommentDeleted` (async) 
+* `c.r.e.event.CommentReplied` (async) 
+* `c.r.c.event.ActivityVisibilityChanged` (async) 
+|===
