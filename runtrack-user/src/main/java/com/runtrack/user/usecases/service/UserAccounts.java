@@ -80,6 +80,13 @@ public class UserAccounts {
     }
 
     @Transactional
+    public void changeAvatar(UserId id, String avatarUrl) {
+        User user = require(id);
+        user.changeAvatar(avatarUrl);
+        publishUpdate(users.save(user));
+    }
+
+    @Transactional
     public void changeHandle(UserId id, Handle handle) {
         User user = require(id);
         if (!user.handle().equals(handle) && users.existsByHandle(handle)) {

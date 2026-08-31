@@ -84,6 +84,45 @@ class UserTest {
     @Nested
     class Editing {
 
+        /**
+         * La photo se change seule.
+         *
+         * <p>C'est toute la raison d'un geste à part : l'écran qui téléverse une image ne connaît
+         * ni le nom d'affichage ni la biographie, et passer par la mise à jour de profil les
+         * écraserait avec du vide.
+         */
+        @Test
+        void changingTheAvatarLeavesTheRestAlone() {
+            User user = active();
+            user.updateProfile("Marie D.", "Trail et bitume", "https://cdn/ancienne.jpg");
+
+            user.changeAvatar("https://cdn/nouvelle.jpg");
+
+            assertThat(user.avatarUrl()).contains("https://cdn/nouvelle.jpg");
+            assertThat(user.displayName()).isEqualTo("Marie D.");
+            assertThat(user.bio()).contains("Trail et bitume");
+        }
+
+        @Test
+        void anEmptyAvatarRemovesThePicture() {
+            User user = active();
+            user.changeAvatar("https://cdn/photo.jpg");
+
+            user.changeAvatar("   ");
+
+            assertThat(user.avatarUrl()).isEmpty();
+        }
+
+        /** Même règle que le reste du profil : un compte non confirmé ne publie rien. */
+        @Test
+        void changingTheAvatarNeedsAnActiveAccount() {
+            User user = registered();
+
+            assertThatExceptionOfType(ConflictException.class)
+                    .isThrownBy(() -> user.changeAvatar("https://cdn/photo.jpg"))
+                    .satisfies(refused -> assertThat(refused.code()).isEqualTo("ACCOUNT_NOT_ACTIVE"));
+        }
+
         @Test
         void updatesTheProfileAndTrimsIt() {
             User user = active();

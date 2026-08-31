@@ -239,6 +239,10 @@ requête se suit d'un bout à l'autre, écouteurs asynchrones compris.
   springdoc depuis les contrôleurs — jamais écrite à la main, donc jamais en retard sur le
   code. Les groupes suivent les modules : on ouvre celui qu'on cherche.
 - **Description brute** : `/v3/api-docs/9-tout`, ou `/v3/api-docs/<groupe>` pour un module.
+- **Le bilan personnel** `GET /users/me/stats?period=` est servi par `course` malgré son URL :
+  les courses lui appartiennent, et faire dépendre `user` de `course` fermerait un cycle. Même
+  arrangement pour `/users/me/devices`, porté par `notification` — une URL décrit ce que le
+  client demande, pas quel module le sert.
 - **Collection prête à l'emploi** : `docs/api/runtrack.http` — s'ouvre dans IntelliJ ou dans
   VS Code, et se suit de haut en bas : créer un compte, courir, partager, commenter.
 

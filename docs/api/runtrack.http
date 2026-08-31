@@ -204,3 +204,23 @@ GET {{host}}/actuator/eventpublications
 
 ### La carte des modules, générée par Spring Modulith
 GET {{host}}/actuator/modulith
+
+### 15 — Profil et bilan personnel
+# La photo se change seule : l'écran qui téléverse une image ne connaît ni le nom
+# d'affichage ni la biographie, et passer par PATCH /users/me les écraserait avec du vide.
+# Demande un compte confirmé, comme le reste du profil.
+PUT {{api}}/users/me/avatar
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"avatarUrl": "https://cdn.example.com/marie.jpg"}
+
+### Le bilan, sur une période *calendaire* — « ce mois-ci » commence le premier du mois.
+# Le fuseau compte : découper à minuit UTC ferait basculer une sortie du dimanche soir
+# dans la semaine suivante pour la moitié de la planète.
+GET {{api}}/users/me/stats?period=MONTH&zone=Europe/Paris
+Authorization: Bearer {{token}}
+
+### Depuis toujours : le seul cas sans borne inférieure.
+GET {{api}}/users/me/stats?period=ALL
+Authorization: Bearer {{token}}

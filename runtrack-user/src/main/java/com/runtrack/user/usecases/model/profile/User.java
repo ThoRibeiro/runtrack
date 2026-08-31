@@ -73,6 +73,24 @@ public final class User {
         status = AccountStatus.ACTIVE;
     }
 
+    /**
+     * Remplace la seule photo, sans toucher au reste.
+     *
+     * <p>Un geste à part parce que c'est un geste à part côté client : le téléversement d'une image
+     * aboutit à une URL, et l'envoyer par la mise à jour de profil obligerait à renvoyer le nom
+     * d'affichage et la bio — que l'écran de photo ne connaît pas et écraserait avec du vide.
+     *
+     * <p>Exige un compte actif, comme {@link #updateProfile} : une photo est du contenu de profil,
+     * et l'autoriser sur un compte non confirmé ouvrirait une voie de publication à quelqu'un dont
+     * on n'a pas vérifié l'adresse.
+     *
+     * @param newAvatarUrl {@code null} ou vide retire la photo
+     */
+    public void changeAvatar(String newAvatarUrl) {
+        requireActive();
+        this.avatarUrl = trimmedOrNull(newAvatarUrl, 2_000, "URL d'avatar");
+    }
+
     public void updateProfile(String newDisplayName, String newBio, String newAvatarUrl) {
         requireActive();
         this.displayName = requireDisplayName(newDisplayName);

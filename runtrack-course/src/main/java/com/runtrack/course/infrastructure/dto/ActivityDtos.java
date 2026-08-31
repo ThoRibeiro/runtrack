@@ -96,4 +96,26 @@ public final class ActivityDtos {
 
     public record SplitsResponse(List<SplitResponse> items) {
     }
+
+    /**
+     * Le bilan d'un coureur sur une période.
+     *
+     * @param period la période demandée, renvoyée telle quelle : l'écran affiche « ce mois-ci »
+     *     à partir de ce qu'il a obtenu, pas de ce qu'il croit avoir demandé
+     * @param since la borne calendaire réellement appliquée, absente pour « depuis toujours »
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record RunnerTotalsResponse(
+            String period,
+            Instant since,
+            long activityCount,
+            double distanceMeters,
+            long movingTimeSeconds,
+            double elevationGain,
+            List<TotalsByType> byType) {
+    }
+
+    public record TotalsByType(
+            String type, long activityCount, double distanceMeters, long movingTimeSeconds) {
+    }
 }

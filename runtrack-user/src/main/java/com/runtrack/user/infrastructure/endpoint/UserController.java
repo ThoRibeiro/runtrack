@@ -63,6 +63,16 @@ class UserController {
         return ProfileMapper.toMyProfile(accounts.byId(id));
     }
 
+    @PutMapping("/users/me/avatar")
+    ProfileDtos.MyProfile changeAvatar(
+            @AuthenticationPrincipal Viewer viewer,
+            @Valid @RequestBody ProfileDtos.ChangeAvatarRequest request) {
+
+        UserId id = requireUser(viewer);
+        accounts.changeAvatar(id, request.avatarUrl());
+        return ProfileMapper.toMyProfile(accounts.byId(id));
+    }
+
     @PutMapping("/users/me/visibility")
     ProfileDtos.MyProfile changeVisibility(
             @AuthenticationPrincipal Viewer viewer,

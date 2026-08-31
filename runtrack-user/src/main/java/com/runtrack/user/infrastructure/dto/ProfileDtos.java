@@ -51,6 +51,10 @@ public final class ProfileDtos {
     public record ChangeHandleRequest(@NotBlank @Size(min = 3, max = 30) String handle) {
     }
 
+    /** @param avatarUrl l'URL rendue par le téléversement ; {@code null} retire la photo */
+    public record ChangeAvatarRequest(@Size(max = 2_000) String avatarUrl) {
+    }
+
     public record ChangeScopeRequest(@NotBlank String accountScope) {
     }
 
