@@ -5,6 +5,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.runtrack.platform.openapi.ApiFolders;
+import java.util.List;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
@@ -43,7 +46,7 @@ class OpenApiIT extends ApiIntegrationTest {
 
     @Test
     void theDocumentIsWrittenForThePublishedSite() throws Exception {
-        MvcResult described = mvc.perform(get("/v3/api-docs/9-tout"))
+        MvcResult described = mvc.perform(get("/v3/api-docs/8-tout"))
                 .andExpect(status().isOk()).andReturn();
         String document = described.getResponse().getContentAsString();
 
@@ -52,12 +55,12 @@ class OpenApiIT extends ApiIntegrationTest {
 
         assertThat(java.nio.file.Files.readString(PUBLISHED))
                 .contains("\"openapi\"")
-                .contains("/api/v1/activities");
+                .contains("/race/v1");
     }
 
     @Test
     void theDocumentDescribesTheApiAndItsSecurityScheme() throws Exception {
-        JsonNode document = documentAt("/v3/api-docs/9-tout");
+        JsonNode document = documentAt("/v3/api-docs/8-tout");
 
         assertThat(document.get("info").get("title").asText()).isEqualTo("RunTrack API");
         assertThat(document.get("components").get("securitySchemes").get("bearerAuth")
@@ -72,50 +75,113 @@ class OpenApiIT extends ApiIntegrationTest {
      */
     @Test
     void everyModuleContributesItsEndpoints() throws Exception {
-        JsonNode paths = documentAt("/v3/api-docs/9-tout").get("paths");
+        JsonNode paths = documentAt("/v3/api-docs/8-tout").get("paths");
 
         assertThat(paths.propertyNames()).contains(
-                "/api/v1/auth/login",
-                "/api/v1/users/me",
-                "/api/v1/users/{id}/follow",
-                "/api/v1/activities",
-                "/api/v1/activities/{id}/points",
-                "/api/v1/activities/{id}/stream",
-                "/api/v1/activities/{id}/track",
-                "/api/v1/activities/{id}/splits",
-                "/api/v1/activities/{id}/share-links",
-                "/api/v1/activities/{id}/likes",
-                "/api/v1/activities/{id}/comments",
-                "/api/v1/notifications",
-                "/api/v1/notifications/stream",
-                "/api/v1/users/me/devices",
-                "/api/v1/feed");
+                "/auth/v1/login",
+                "/user/v1/me",
+                "/user/v1/{id}/follow",
+                "/race/v1",
+                "/race/v1/{id}/points",
+                "/race/v1/{id}/stream",
+                "/race/v1/{id}/track",
+                "/race/v1/{id}/splits",
+                "/race/v1/{id}/share-links",
+                "/race/v1/{id}/likes",
+                "/race/v1/{id}/comments",
+                "/notification/v1",
+                "/notification/v1/stream",
+                "/user/v1/me/devices",
+                "/feed/v1");
     }
 
-    /** Les groupes suivent les modules : on ouvre celui qu'on cherche, pas les cent endpoints. */
+    /** Un groupe par préfixe : on ouvre la ressource qu'on cherche, pas les cent endpoints. */
     @Test
-    void eachGroupIsScopedToItsModule() throws Exception {
-        JsonNode coursePaths = documentAt("/v3/api-docs/4-course").get("paths");
+    void eachGroupIsScopedToItsPrefix() throws Exception {
+        JsonNode racePaths = documentAt("/v3/api-docs/3-race").get("paths");
 
-        assertThat(coursePaths.propertyNames()).contains("/api/v1/activities");
-        assertThat(coursePaths.propertyNames()).doesNotContain("/api/v1/auth/login");
+        assertThat(racePaths.propertyNames()).contains("/race/v1");
+        assertThat(racePaths.propertyNames()).doesNotContain("/auth/v1/login");
+    }
+
+    /**
+     * Aucun groupe vide dans le sélecteur.
+     *
+     * <p>Un groupe dont le {@code pathsToMatch} ne colle plus aux chemins réels ne casse rien :
+     * il s'ouvre, et il est vide. C'est le mode de panne d'une réindexation des URL — le groupe
+     * survit au renommage, son filtre non — et rien d'autre ne l'attraperait.
+     */
+    @Test
+    void everyDeclaredGroupDescribesAtLeastOneEndpoint() throws Exception {
+        JsonNode groups = documentAt("/v3/api-docs/swagger-config").get("urls");
+
+        assertThat(groups).isNotEmpty();
+        for (JsonNode group : groups) {
+            String name = group.get("name").stringValue();
+            JsonNode paths = documentAt("/v3/api-docs/" + name).get("paths");
+            assertThat(paths.propertyNames())
+                    .describedAs("le groupe « %s » ne décrit aucun chemin", name)
+                    .isNotEmpty();
+        }
+    }
+
+    /**
+     * Chaque opération porte un résumé, et se range dans un dossier déclaré.
+     *
+     * <p>Un endpoint ajouté sans {@code @Operation} n'échoue nulle part : il apparaît dans l'UI
+     * sous sa seule signature technique, et sans décorateur de dossier il fonde un dossier de
+     * plus, nommé d'après sa classe. Rien d'autre que ce test ne le refuse.
+     */
+    @Test
+    void everyOperationCarriesASummaryAndAKnownFolder() throws Exception {
+        List<String> folders = List.of(ApiFolders.AUTHENTICATION, ApiFolders.ACCOUNTS,
+                ApiFolders.RACES, ApiFolders.NOTIFICATIONS, ApiFolders.FEED);
+        JsonNode paths = documentAt("/v3/api-docs/8-tout").get("paths");
+
+        for (String path : paths.propertyNames()) {
+            for (String verb : paths.get(path).propertyNames()) {
+                JsonNode operation = paths.get(path).get(verb);
+                String where = verb.toUpperCase(Locale.ROOT) + " " + path;
+
+                assertThat(operation.get("summary"))
+                        .describedAs("%s n'a pas de résumé", where)
+                        .isNotNull();
+                assertThat(operation.get("tags").valueStream().map(JsonNode::stringValue))
+                        .describedAs("%s se range dans un dossier non déclaré", where)
+                        .isSubsetOf(folders);
+            }
+        }
+    }
+
+    /**
+     * L'UI s'ouvre sur le groupe complet.
+     *
+     * <p>Elle n'affiche qu'un groupe à la fois et prend le premier de la liste sans qu'on lui
+     * désigne un groupe primaire : la page s'ouvrirait alors sur « 1-auth », et donnerait à
+     * croire que l'API se limite à l'authentification.
+     */
+    @Test
+    void theUserInterfaceOpensOnTheCompleteGroup() throws Exception {
+        JsonNode configuration = documentAt("/v3/api-docs/swagger-config");
+
+        assertThat(configuration.get("urls.primaryName").stringValue()).isEqualTo("8-tout");
     }
 
     /** La description est publique : c'est un contrat, et l'ouvrir n'ouvre rien de ce qu'il décrit. */
     @Test
     void theDocumentAndItsUiAreReadableWithoutAnAccount() throws Exception {
-        mvc.perform(get("/v3/api-docs/9-tout")).andExpect(status().isOk());
+        mvc.perform(get("/v3/api-docs/8-tout")).andExpect(status().isOk());
         mvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
     }
 
     /** Ce que la description promet du format d'erreur doit rester vrai. */
     @Test
     void theDescriptionMentionsTheErrorFormatAndTheCursor() throws Exception {
-        String description = documentAt("/v3/api-docs/9-tout")
+        String description = documentAt("/v3/api-docs/8-tout")
                 .get("info").get("description").asText();
 
         assertThat(description).contains("problem+json").contains("nextCursor");
-        mvc.perform(get("/api/v1/feed"))
+        mvc.perform(get("/feed/v1"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").exists());
     }

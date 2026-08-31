@@ -45,14 +45,14 @@ class HardeningApiIT extends ApiIntegrationTest {
     void theCorrelationIdentifierIsEchoedBack() throws Exception {
         String provided = "trace-" + UUID.randomUUID();
 
-        mvc.perform(get("/api/v1/feed").header(CorrelationId.HEADER, provided))
+        mvc.perform(get("/feed/v1").header(CorrelationId.HEADER, provided))
                 .andExpect(header().string(CorrelationId.HEADER, provided));
     }
 
     /** Sans en-tête, il est tiré : une requête sans corrélation n'existe pas. */
     @Test
     void anIdentifierIsMintedWhenTheCallerBringsNone() throws Exception {
-        MvcResult answered = mvc.perform(get("/api/v1/feed")).andReturn();
+        MvcResult answered = mvc.perform(get("/feed/v1")).andReturn();
 
         assertThat(answered.getResponse().getHeader(CorrelationId.HEADER)).isNotBlank();
     }
@@ -60,11 +60,29 @@ class HardeningApiIT extends ApiIntegrationTest {
     /** Les en-têtes de sécurité du §9, sur une réponse quelconque. */
     @Test
     void everyResponseCarriesItsSecurityHeaders() throws Exception {
-        mvc.perform(get("/api/v1/feed"))
+        mvc.perform(get("/feed/v1"))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(header().string("Referrer-Policy", "no-referrer"))
                 .andExpect(header().string("X-Frame-Options", "DENY"))
                 .andExpect(header().string("Content-Security-Policy", "default-src 'none'"));
+    }
+
+    /**
+     * L'unique exception à la politique ci-dessus, et la raison qu'elle a d'exister : Swagger UI
+     * est du HTML, et {@code default-src 'none'} lui retirerait sa feuille de style comme son
+     * bundle — une page blanche qu'aucune erreur serveur n'expliquerait. L'assertion porte sur ce
+     * que la page doit pouvoir charger, pas sur la chaîne exacte, qui peut encore se resserrer.
+     */
+    @Test
+    void theSwaggerUserInterfaceIsAllowedToLoadItsOwnAssets() throws Exception {
+        String policy = mvc.perform(get("/swagger-ui/index.html"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getHeader("Content-Security-Policy");
+
+        assertThat(policy)
+                .contains("default-src 'self'")
+                .contains("script-src 'self'")
+                .contains("style-src 'self' 'unsafe-inline'");
     }
 
     /**
@@ -82,7 +100,7 @@ class HardeningApiIT extends ApiIntegrationTest {
 
         int refusedAt = -1;
         for (int attempt = 1; attempt <= 15 && refusedAt < 0; attempt++) {
-            int status = mvc.perform(post("/api/v1/auth/login")
+            int status = mvc.perform(post("/auth/v1/login")
                     .contentType(MediaType.APPLICATION_JSON).content(body))
                     .andReturn().getResponse().getStatus();
             if (status == 429) {
@@ -91,7 +109,7 @@ class HardeningApiIT extends ApiIntegrationTest {
         }
 
         assertThat(refusedAt).isPositive();
-        mvc.perform(post("/api/v1/auth/login")
+        mvc.perform(post("/auth/v1/login")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isTooManyRequests())
                 // Le code métier, pas le statut : c'est lui que le client teste (§8).
@@ -116,7 +134,7 @@ class HardeningApiIT extends ApiIntegrationTest {
                 {"email":"sature-%s@example.com","password":"mauvais"}
                 """.formatted(UUID.randomUUID());
         for (int attempt = 0; attempt < 12; attempt++) {
-            mvc.perform(post("/api/v1/auth/login")
+            mvc.perform(post("/auth/v1/login")
                     .contentType(MediaType.APPLICATION_JSON).content(saturated));
         }
 

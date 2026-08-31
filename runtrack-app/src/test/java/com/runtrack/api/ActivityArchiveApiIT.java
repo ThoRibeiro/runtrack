@@ -45,7 +45,7 @@ class ActivityArchiveApiIT extends ApiIntegrationTest {
     }
 
     private void finish(Account owner, Run run) throws Exception {
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/finish")
+        mvc.perform(post("/race/v1/" + run.id() + "/finish")
                 .header("Authorization", owner.bearer())).andExpect(status().isNoContent());
     }
 
@@ -71,7 +71,7 @@ class ActivityArchiveApiIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = aFinishedRunOf(marie, 55);
 
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/track")
+        mvc.perform(get("/race/v1/" + run.id() + "/track")
                         .header("Authorization", marie.bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.polyline").isNotEmpty())
@@ -79,7 +79,7 @@ class ActivityArchiveApiIT extends ApiIntegrationTest {
                 .andExpect(jsonPath("$.frozenAt").exists())
                 .andExpect(jsonPath("$.pointsPurgedAt").doesNotExist());
 
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/splits")
+        mvc.perform(get("/race/v1/" + run.id() + "/splits")
                         .header("Authorization", marie.bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
@@ -108,7 +108,7 @@ class ActivityArchiveApiIT extends ApiIntegrationTest {
         Run run = fixtures.startRun(marie);
         fixtures.ingest(marie, run, 1, 10);
 
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/track")
+        mvc.perform(get("/race/v1/" + run.id() + "/track")
                         .header("Authorization", marie.bearer()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("TRACK_NOT_ARCHIVED"));
@@ -123,7 +123,7 @@ class ActivityArchiveApiIT extends ApiIntegrationTest {
         fixtures.ingest(marie, run, 1, 100);
         finish(marie, run);
 
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/track")
+        mvc.perform(get("/race/v1/" + run.id() + "/track")
                         .header("Authorization", paul.bearer()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ACTIVITY_NOT_FOUND"));
@@ -156,7 +156,7 @@ class ActivityArchiveApiIT extends ApiIntegrationTest {
                 .isEqualTo(true);
 
         // La trace reste affichable : c'est tout l'objet de la rétention.
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/track")
+        mvc.perform(get("/race/v1/" + run.id() + "/track")
                         .header("Authorization", marie.bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pointsPurgedAt").exists());

@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  * Le décorateur de cache des liens de partage.
  *
  * <p>Une seule lecture est cachée, et c'est la plus chaude du module : la résolution d'un jeton.
- * Elle a lieu à <b>chaque</b> requête sur {@code /shared/**}, y compris sur chaque événement d'un
+ * Elle a lieu à <b>chaque</b> requête sur {@code /shared/v1/**}, y compris sur chaque événement d'un
  * flux SSE reconnecté, et sur un chemin public — donc sans compte à qui imputer l'abus.
  *
  * <p>Les autres lectures — lister les liens d'une course, en charger un par son identifiant — ne

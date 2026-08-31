@@ -33,7 +33,7 @@ class UserApiIT extends ApiIntegrationTest {
 
     /** Inscrit, confirme l'adresse via le lien, puis rend un jeton d'accès utilisable. */
     private String activeUserToken(String handle) throws Exception {
-        mvc.perform(post("/api/v1/auth/signup")
+        mvc.perform(post("/auth/v1/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"handle":"%s","email":"%s@example.com","displayName":"Paul",
@@ -41,7 +41,7 @@ class UserApiIT extends ApiIntegrationTest {
                                 """.formatted(handle, handle)))
                 .andExpect(status().isCreated());
 
-        MvcResult login = mvc.perform(post("/api/v1/auth/login")
+        MvcResult login = mvc.perform(post("/auth/v1/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s@example.com","password":"correcthorsebattery"}
@@ -60,7 +60,7 @@ class UserApiIT extends ApiIntegrationTest {
         String handle = uniqueHandle();
         activeUserToken(handle);
 
-        mvc.perform(get("/api/v1/users/" + handle))
+        mvc.perform(get("/user/v1/" + handle))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.handle").value(handle))
                 .andExpect(jsonPath("$.displayName").value("Paul"))
@@ -70,7 +70,7 @@ class UserApiIT extends ApiIntegrationTest {
 
     @Test
     void anUnknownHandleIsNotFound() throws Exception {
-        mvc.perform(get("/api/v1/users/personnequinexistepas"))
+        mvc.perform(get("/user/v1/personnequinexistepas"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"));
     }
@@ -80,7 +80,7 @@ class UserApiIT extends ApiIntegrationTest {
     void editingBeforeConfirmingTheEmailIsAConflict() throws Exception {
         String token = activeUserToken(uniqueHandle());
 
-        mvc.perform(patch("/api/v1/users/me")
+        mvc.perform(patch("/user/v1/me")
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"displayName\":\"Paul D.\"}"))
@@ -92,7 +92,7 @@ class UserApiIT extends ApiIntegrationTest {
     void anEmptyDisplayNameIsUnprocessable() throws Exception {
         String token = activeUserToken(uniqueHandle());
 
-        mvc.perform(patch("/api/v1/users/me")
+        mvc.perform(patch("/user/v1/me")
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"displayName\":\"  \"}"))
@@ -104,7 +104,7 @@ class UserApiIT extends ApiIntegrationTest {
     void anInvalidHandleIsUnprocessable() throws Exception {
         String token = activeUserToken(uniqueHandle());
 
-        mvc.perform(put("/api/v1/users/me/handle")
+        mvc.perform(put("/user/v1/me/handle")
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"handle\":\"un handle invalide\"}"))
@@ -115,16 +115,16 @@ class UserApiIT extends ApiIntegrationTest {
     void physiologyIsReadableOnlyByItsOwnerAndStartsEmpty() throws Exception {
         String token = activeUserToken(uniqueHandle());
 
-        mvc.perform(get("/api/v1/users/me/physiology").header("Authorization", bearer(token)))
+        mvc.perform(get("/user/v1/me/physiology").header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.weightKilograms").doesNotExist());
 
-        mvc.perform(get("/api/v1/users/me/physiology")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/user/v1/me/physiology")).andExpect(status().isUnauthorized());
     }
 
     @Test
     void searchNeedsAuthentication() throws Exception {
-        mvc.perform(get("/api/v1/users").param("search", "paul"))
+        mvc.perform(get("/user/v1").param("search", "paul"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -133,7 +133,7 @@ class UserApiIT extends ApiIntegrationTest {
         String handle = uniqueHandle();
         String token = activeUserToken(handle);
 
-        mvc.perform(get("/api/v1/users").param("search", handle)
+        mvc.perform(get("/user/v1").param("search", handle)
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].handle").value(handle));
@@ -141,6 +141,6 @@ class UserApiIT extends ApiIntegrationTest {
 
     @Test
     void deletingOwnAccountNeedsAuthentication() throws Exception {
-        mvc.perform(delete("/api/v1/users/me")).andExpect(status().isUnauthorized());
+        mvc.perform(delete("/user/v1/me")).andExpect(status().isUnauthorized());
     }
 }

@@ -3,10 +3,12 @@ package com.runtrack.feed.infrastructure.endpoint;
 import com.runtrack.feed.usecases.service.FeedReader;
 import com.runtrack.feed.usecases.model.entry.FeedEntry;
 import com.runtrack.feed.infrastructure.dto.FeedDtos;
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.error.ForbiddenException;
 import com.runtrack.shared.id.UserId;
 import com.runtrack.user.UserSummary;
+import io.swagger.v3.oas.annotations.Operation;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -23,7 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
  * désigner est d'être connecté.
  */
 @RestController
-@RequestMapping("/api/v1")
+@ApiFolders.Feed
+@RequestMapping("/feed/v1")
 class FeedController {
 
     private final FeedReader feed;
@@ -32,7 +35,8 @@ class FeedController {
         this.feed = feed;
     }
 
-    @GetMapping("/feed")
+    @Operation(summary = "Lire son fil d'actualité")
+    @GetMapping
     FeedDtos.FeedPage read(
             @AuthenticationPrincipal Viewer viewer,
             @RequestParam(required = false) Instant cursor,

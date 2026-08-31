@@ -1,5 +1,6 @@
 package com.runtrack.sharing.infrastructure.endpoint;
 
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.error.ForbiddenException;
 import com.runtrack.shared.id.ActivityId;
@@ -8,6 +9,7 @@ import com.runtrack.sharing.usecases.service.ShareLinks;
 import com.runtrack.sharing.usecases.model.link.ShareLink;
 import com.runtrack.sharing.usecases.model.link.ShareLinkId;
 import com.runtrack.sharing.infrastructure.dto.ShareDtos;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.time.Duration;
 import java.util.Optional;
@@ -19,13 +21,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** L'émission et la révocation des liens de partage. */
 @RestController
-@RequestMapping("/api/v1")
+@ApiFolders.Races
 class ShareLinkController {
 
     private final ShareLinks links;
@@ -34,7 +35,8 @@ class ShareLinkController {
         this.links = links;
     }
 
-    @PostMapping("/activities/{id}/share-links")
+    @Operation(summary = "Créer un lien de partage pour une course")
+    @PostMapping("/race/v1/{id}/share-links")
     @ResponseStatus(HttpStatus.CREATED)
     ShareDtos.ShareLinkResponse issue(
             @AuthenticationPrincipal Viewer viewer,
@@ -49,7 +51,8 @@ class ShareLinkController {
         return ShareLinkMapper.toResponse(issued.link(), issued.token().value());
     }
 
-    @GetMapping("/activities/{id}/share-links")
+    @Operation(summary = "Lister les liens de partage d'une course")
+    @GetMapping("/race/v1/{id}/share-links")
     ShareDtos.ShareLinkListResponse list(@AuthenticationPrincipal Viewer viewer,
             @PathVariable String id) {
 
@@ -61,7 +64,8 @@ class ShareLinkController {
                         .toList());
     }
 
-    @DeleteMapping("/share-links/{id}")
+    @Operation(summary = "Révoquer un lien de partage")
+    @DeleteMapping("/share-link/v1/{id}")
     ResponseEntity<Void> revoke(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         links.revoke(requireUser(viewer), ShareLinkId.of(id));
         return ResponseEntity.noContent().build();
@@ -85,7 +89,7 @@ class ShareLinkController {
             return new ShareDtos.ShareLinkResponse(
                     link.id().toString(),
                     clearToken,
-                    clearToken == null ? null : "/api/v1/shared/" + clearToken,
+                    clearToken == null ? null : "/shared/v1/" + clearToken,
                     link.createdAt(),
                     link.expiresAt().orElse(null),
                     link.revokedAt().orElse(null),

@@ -49,7 +49,7 @@ final class CourseFixtures {
 
     Account newAccount() throws Exception {
         String handle = "f" + COUNTER.incrementAndGet() + System.nanoTime() % 100_000;
-        MvcResult created = mvc.perform(post("/api/v1/auth/signup")
+        MvcResult created = mvc.perform(post("/auth/v1/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"handle":"%s","email":"%s@example.com","displayName":"Coureur",
@@ -58,7 +58,7 @@ final class CourseFixtures {
                 .andExpect(status().isCreated()).andReturn();
         String id = json.readTree(created.getResponse().getContentAsString()).get("userId").asText();
 
-        MvcResult login = mvc.perform(post("/api/v1/auth/login")
+        MvcResult login = mvc.perform(post("/auth/v1/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s@example.com","password":"correcthorsebattery"}
@@ -79,7 +79,7 @@ final class CourseFixtures {
      * comme ce qui dépasse l'heure serveur, et ces deux bornes bougent à chaque exécution.
      */
     Run startRun(Account owner, String visibility) throws Exception {
-        MvcResult started = mvc.perform(post("/api/v1/activities")
+        MvcResult started = mvc.perform(post("/race/v1")
                         .header("Authorization", owner.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -107,7 +107,7 @@ final class CourseFixtures {
     }
 
     MvcResult ingest(Account owner, Run run, String body, String key) throws Exception {
-        var request = post("/api/v1/activities/" + run.id() + "/points")
+        var request = post("/race/v1/" + run.id() + "/points")
                 .header("Authorization", owner.bearer())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body);

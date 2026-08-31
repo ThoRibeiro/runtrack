@@ -9,11 +9,20 @@
 # Démarrer les dépendances avant : `docker compose up -d`.
 
 @host = http://localhost:8080
-@api = {{host}}/api/v1
+
+# Un préfixe par ressource : le chemin dit ce qu'on manipule, pas quel module répond.
+@auth = {{host}}/auth/v1
+@user = {{host}}/user/v1
+@race = {{host}}/race/v1
+@comment = {{host}}/comment/v1
+@shareLink = {{host}}/share-link/v1
+@shared = {{host}}/shared/v1
+@notification = {{host}}/notification/v1
+@feed = {{host}}/feed/v1
 
 ### 1 — Créer un compte
 # @name signup
-POST {{api}}/auth/signup
+POST {{auth}}/signup
 Content-Type: application/json
 
 {
@@ -26,7 +35,7 @@ Content-Type: application/json
 ### 2 — Se connecter
 # Le jeton d'accès vaut 15 minutes ; le refresh est rotatif et se stocke haché (§9).
 # @name login
-POST {{api}}/auth/login
+POST {{auth}}/login
 Content-Type: application/json
 
 {
@@ -39,7 +48,7 @@ Content-Type: application/json
 ### 3 — Démarrer une course
 # `deviceTime` sert à mesurer la dérive de l'horloge du téléphone, une fois pour toute la course.
 # @name start
-POST {{api}}/activities
+POST {{race}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -57,7 +66,7 @@ Content-Type: application/json
 # mémorisée ; même clé + corps différent répond 409 IDEMPOTENCY_KEY_REUSED (§4).
 # Les horodatages doivent tomber entre le départ et l'heure serveur + 60 s, sinon le filtre
 # les écarte — c'est voulu, et c'est ce qui rend un client qui triche sans effet.
-POST {{api}}/activities/{{runId}}/points
+POST {{race}}/{{runId}}/points
 Authorization: Bearer {{token}}
 Idempotency-Key: tampon-1
 Content-Type: application/json
@@ -73,34 +82,34 @@ Content-Type: application/json
 
 ### 5 — Suivre la course en direct (SSE)
 # Reprise après coupure : renvoyer le dernier `id:` reçu dans `Last-Event-ID`.
-GET {{api}}/activities/{{runId}}/stream
+GET {{race}}/{{runId}}/stream
 Authorization: Bearer {{token}}
 Accept: text/event-stream
 
 ### 6 — Mettre en pause, reprendre, terminer
-POST {{api}}/activities/{{runId}}/pause
+POST {{race}}/{{runId}}/pause
 Authorization: Bearer {{token}}
 
 ###
-POST {{api}}/activities/{{runId}}/resume
+POST {{race}}/{{runId}}/resume
 Authorization: Bearer {{token}}
 
 ### Terminer : c'est ici que splits, polyline et LINESTRING sont produits (§4).
-POST {{api}}/activities/{{runId}}/finish
+POST {{race}}/{{runId}}/finish
 Authorization: Bearer {{token}}
 
 ### 7 — La trace historisée et ses tronçons
-GET {{api}}/activities/{{runId}}/track
+GET {{race}}/{{runId}}/track
 Authorization: Bearer {{token}}
 
 ###
-GET {{api}}/activities/{{runId}}/splits
+GET {{race}}/{{runId}}/splits
 Authorization: Bearer {{token}}
 
 ### 8 — Partager la course
 # Le jeton n'est rendu qu'ici : il est stocké haché, et n'existe ensuite nulle part ailleurs.
 # @name share
-POST {{api}}/activities/{{runId}}/share-links
+POST {{race}}/{{runId}}/share-links
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -109,23 +118,23 @@ Content-Type: application/json
 @shareToken = {{share.response.body.token}}
 
 ### Ouvrir le lien — sans aucune authentification, et pour cette course seulement (§5.4)
-GET {{api}}/shared/{{shareToken}}
+GET {{shared}}/{{shareToken}}
 
 ### Le direct passe par le même chemin
-GET {{api}}/shared/{{shareToken}}/stream
+GET {{shared}}/{{shareToken}}/stream
 Accept: text/event-stream
 
 ### 9 — Aimer et commenter
-POST {{api}}/activities/{{runId}}/likes
+POST {{race}}/{{runId}}/likes
 Authorization: Bearer {{token}}
 
 ###
-GET {{api}}/activities/{{runId}}/likes
+GET {{race}}/{{runId}}/likes
 Authorization: Bearer {{token}}
 
 ### Un commentaire est modifiable 30 minutes, puis figé (§3).
 # @name comment
-POST {{api}}/activities/{{runId}}/comments
+POST {{race}}/{{runId}}/comments
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -134,14 +143,14 @@ Content-Type: application/json
 @commentId = {{comment.response.body.id}}
 
 ### Répondre — un seul niveau de profondeur
-POST {{api}}/activities/{{runId}}/comments
+POST {{race}}/{{runId}}/comments
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {"body": "Merci !", "parentId": "{{commentId}}"}
 
 ###
-PATCH {{api}}/comments/{{commentId}}
+PATCH {{comment}}/{{commentId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -149,34 +158,34 @@ Content-Type: application/json
 
 ### 10 — Le fil
 # Fan-out à la lecture : les abonnements viennent du cache, la projection est filtrée dessus.
-GET {{api}}/feed
+GET {{feed}}
 Authorization: Bearer {{token}}
 
 ### Page suivante : renvoyer le `nextCursor` reçu
-GET {{api}}/feed?cursor=2026-08-31T07:00:00Z&limit=20
+GET {{feed}}?cursor=2026-08-31T07:00:00Z&limit=20
 Authorization: Bearer {{token}}
 
 ### 11 — Notifications
-GET {{api}}/notifications?unreadOnly=true
+GET {{notification}}?unreadOnly=true
 Authorization: Bearer {{token}}
 
 ###
-GET {{api}}/notifications/unread-count
+GET {{notification}}/unread-count
 Authorization: Bearer {{token}}
 
 ### Le flux SSE de la boîte : la pastille s'allume sans recharger
-GET {{api}}/notifications/stream
+GET {{notification}}/stream
 Authorization: Bearer {{token}}
 Accept: text/event-stream
 
 ###
-POST {{api}}/notifications/read-all
+POST {{notification}}/read-all
 Authorization: Bearer {{token}}
 
 ### 12 — Préférences et heures calmes
 # Les natures coupées, et une plage de silence exprimée dans le fuseau du destinataire :
 # « pas avant 7 h » n'a de sens que là où il se trouve.
-PATCH {{api}}/users/me/notification-preferences
+PATCH {{user}}/me/notification-preferences
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -186,14 +195,14 @@ Content-Type: application/json
 }
 
 ### 13 — Déclarer un appareil pour le push
-POST {{api}}/users/me/devices
+POST {{user}}/me/devices
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {"token": "jeton-fcm-du-telephone", "platform": "ANDROID"}
 
 ###
-GET {{api}}/users/me/devices
+GET {{user}}/me/devices
 Authorization: Bearer {{token}}
 
 ### 14 — Exploitation
@@ -209,7 +218,7 @@ GET {{host}}/actuator/modulith
 # La photo se change seule : l'écran qui téléverse une image ne connaît ni le nom
 # d'affichage ni la biographie, et passer par PATCH /users/me les écraserait avec du vide.
 # Demande un compte confirmé, comme le reste du profil.
-PUT {{api}}/users/me/avatar
+PUT {{user}}/me/avatar
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -218,13 +227,13 @@ Content-Type: application/json
 ### Le bilan, sur une période *calendaire* — « ce mois-ci » commence le premier du mois.
 # Le fuseau compte : découper à minuit UTC ferait basculer une sortie du dimanche soir
 # dans la semaine suivante pour la moitié de la planète.
-GET {{api}}/users/me/stats?period=MONTH&zone=Europe/Paris
+GET {{user}}/me/stats?period=MONTH&zone=Europe/Paris
 Authorization: Bearer {{token}}
 
 ### Depuis toujours : le seul cas sans borne inférieure.
-GET {{api}}/users/me/stats?period=ALL
+GET {{user}}/me/stats?period=ALL
 Authorization: Bearer {{token}}
 
 ### 16 — La description OpenAPI elle-même
 # Servie par l'application ; la même est publiée sur GitHub Pages, écrite par le build.
-GET {{host}}/v3/api-docs/9-tout
+GET {{host}}/v3/api-docs/8-tout

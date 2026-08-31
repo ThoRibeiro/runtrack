@@ -12,21 +12,27 @@ Dragonfly · modèle bloquant sur virtual threads.
 ```bash
 docker compose up -d                 # Postgres + PostGIS, Dragonfly
 export JAVA_HOME=$(/usr/libexec/java_home -v 25)
-mvn verify                           # compile, tests, seuil de couverture
+mvn install                          # compile, tests, couverture, pose les modules dans ~/.m2
 mvn -pl runtrack-app spring-boot:run  # profil `local` par défaut
 ```
 
 Puis : <http://localhost:8080/swagger-ui.html> pour l'API, et `docs/api/runtrack.http`
 pour la parcourir de bout en bout.
 
-Deux choses font échouer un premier lancement, et leurs messages ne le disent pas :
+Trois choses font échouer un premier lancement, et leurs messages ne le disent pas :
 
 - **le build exige un JDK 25**, vérifié par `maven-enforcer-plugin`. Si `java -version`
   répond autre chose, le `JAVA_HOME` ci-dessus est obligatoire — l'erreur parle de la
   version détectée sans dire qu'elle vient du PATH ;
 - **les tests d'intégration démarrent des conteneurs.** Sans Docker en marche, une
   cinquantaine d'ITs échouent d'un bloc sur `Could not find a valid Docker environment`,
-  ce qui ressemble à une panne de code.
+  ce qui ressemble à une panne de code ;
+- **`mvn verify` ne suffit pas avant un `-pl`.** `verify` s'arrête avant `install` : les
+  modules ne sont jamais posés dans `~/.m2`, donc `mvn -pl runtrack-app spring-boot:run`
+  — qui ne construit que ce module — cherche `runtrack-platform`, `runtrack-user` et les
+  autres dans le dépôt local et ne les y trouve pas (`Could not find artifact
+  com.runtrack:…:0.1.0-SNAPSHOT`). D'où le `mvn install` ci-dessus, à refaire après
+  chaque modification d'un module dont `runtrack-app` dépend.
 
 ### Profils
 
@@ -145,7 +151,7 @@ l'instance **B** voie une course dont les points arrivent sur l'instance **A**.
 ```
   téléphone du coureur                     spectateurs
          │                                  ▲        ▲
-         │ POST /activities/{id}/points     │ SSE    │ SSE
+         │ POST /race/v1/{id}/points        │ SSE    │ SSE
          ▼                                  │        │
    ┌───────────────┐                 ┌──────┴──┐  ┌──┴──────┐
    │  instance A   │                 │  inst.A │  │  inst.B │
@@ -182,7 +188,7 @@ retombe sur l'instantané plutôt que sur un trou silencieux.
 ### La chaîne de notification — de la course au téléphone d'un ami
 
 ```
-  POST /activities            ┌─ transaction métier ────────────┐
+  POST /race/v1               ┌─ transaction métier ────────────┐
         │                     │ ActivityLifecycle.start()       │
         └────────────────────▶│   ├ écrit la course             │
                               │   └ publishEvent(ActivityStarted)
@@ -287,13 +293,42 @@ c'est l'application locale qui répond.
 
 ## API
 
+### L'indexation des URL
+
+Un chemin est `<ressource>/v1/…`. Le premier segment nomme **ce qu'on manipule**, jamais le
+module qui répond : les likes d'une course sont sous `race/v1`, bien qu'ils soient servis par
+`engagement`, et le bilan d'un coureur sous `user/v1`, bien qu'il vienne de `course`. Un
+endpoint qui déménage d'un module à l'autre ne change donc pas d'URL.
+
+| Préfixe | Ce qu'il adresse |
+|---|---|
+| `auth/v1` | inscription, connexion, jeton, mot de passe |
+| `user/v1` | profil, abonnements, blocages, appareils, préférences, bilans, `user/v1/{id}/races` |
+| `race/v1` | cycle de vie d'une course, points, trace, direct, likes, commentaires, liens de partage |
+| `comment/v1` | un commentaire déjà écrit : édition, suppression |
+| `share-link/v1` | révocation d'un lien de partage |
+| `shared/v1` | la lecture par lien de partage — réacheminée vers `race/v1`, sans contrôleur à elle |
+| `notification/v1` | notifications, compteur, flux SSE |
+| `feed/v1` | le fil d'actualité |
+
+La version est **par ressource**, et c'est l'intérêt du découpage : faire passer les courses en
+`race/v2` n'oblige pas à reversionner l'authentification. Il n'y a pas de `/api/v1/**` : le
+schéma précédent a été remplacé, sans alias de compatibilité.
+
 - **Documentation interactive** : <http://localhost:8080/swagger-ui.html>, générée par
   springdoc depuis les contrôleurs — jamais écrite à la main, donc jamais en retard sur le
-  code. Les groupes suivent les modules : on ouvre celui qu'on cherche.
-- **Description brute** : `/v3/api-docs/9-tout`, ou `/v3/api-docs/<groupe>` pour un module.
-- **Le bilan personnel** `GET /users/me/stats?period=` est servi par `course` malgré son URL :
+  code. Un groupe par préfixe : la page s'ouvre sur `8-tout`, et le sélecteur en haut mène à
+  la ressource qu'on cherche — l'UI n'affiche qu'un groupe à la fois.
+- **Description brute** : `/v3/api-docs/8-tout`, ou `/v3/api-docs/<groupe>` pour une ressource.
+- **Les dossiers sont des décorateurs** : `ApiFolders` (dans `platform`) déclare les cinq
+  dossiers de l'UI, et un contrôleur porte `@ApiFolders.Races` au lieu d'un `@Tag` recopié.
+  Un dossier regroupe des contrôleurs de modules différents — `/user/v1` est servi par quatre
+  d'entre eux — et son libellé n'existe donc qu'à un seul endroit. Reste, par endpoint, le seul
+  texte qu'aucun décorateur ne peut deviner : `@Operation(summary = …)`. `OpenApiIT` refuse une
+  opération sans résumé ou rangée dans un dossier non déclaré.
+- **Le bilan personnel** `GET /user/v1/me/stats?period=` est servi par `course` malgré son URL :
   les courses lui appartiennent, et faire dépendre `user` de `course` fermerait un cycle. Même
-  arrangement pour `/users/me/devices`, porté par `notification` — une URL décrit ce que le
+  arrangement pour `/user/v1/me/devices`, porté par `notification` — une URL décrit ce que le
   client demande, pas quel module le sert.
 - **Collection prête à l'emploi** : `docs/api/runtrack.http` — s'ouvre dans IntelliJ ou dans
   VS Code, et se suit de haut en bas : créer un compte, courir, partager, commenter.

@@ -55,7 +55,7 @@ class PointIngestionApiIT extends ApiIntegrationTest {
         assertThat(body.get("lastAcceptedSequence").asInt()).isEqualTo(5);
         assertThat(body.get("stats").get("distanceMeters").asDouble()).isGreaterThan(10);
 
-        mvc.perform(get("/api/v1/activities/" + run.id()).header("Authorization", marie.bearer()))
+        mvc.perform(get("/race/v1/" + run.id()).header("Authorization", marie.bearer()))
                 .andExpect(jsonPath("$.stats.distanceMeters").value(
                         body.get("stats").get("distanceMeters").asDouble()));
     }
@@ -96,7 +96,7 @@ class PointIngestionApiIT extends ApiIntegrationTest {
         Run run = fixtures.startRun(marie);
         fixtures.ingest(marie, run, batch(run, 1, 5), "buffer-1");
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/points")
+        mvc.perform(post("/race/v1/" + run.id() + "/points")
                         .header("Authorization", marie.bearer())
                         .header("Idempotency-Key", "buffer-1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -137,7 +137,7 @@ class PointIngestionApiIT extends ApiIntegrationTest {
         Account paul = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/points")
+        mvc.perform(post("/race/v1/" + run.id() + "/points")
                         .header("Authorization", paul.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(batch(run, 1, 3)))
@@ -149,11 +149,11 @@ class PointIngestionApiIT extends ApiIntegrationTest {
     void aFinishedRunRefusesPoints() throws Exception {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/finish")
+        mvc.perform(post("/race/v1/" + run.id() + "/finish")
                         .header("Authorization", marie.bearer()))
                 .andExpect(status().isNoContent());
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/points")
+        mvc.perform(post("/race/v1/" + run.id() + "/points")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(batch(run, 1, 3)))
@@ -166,7 +166,7 @@ class PointIngestionApiIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/points")
+        mvc.perform(post("/race/v1/" + run.id() + "/points")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(batch(run, 1, 3)))
                 .andExpect(status().isUnauthorized());
@@ -177,7 +177,7 @@ class PointIngestionApiIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/points")
+        mvc.perform(post("/race/v1/" + run.id() + "/points")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"points\":[]}"))

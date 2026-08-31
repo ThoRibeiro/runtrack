@@ -48,7 +48,7 @@ class LiveStreamApiIT extends ApiIntegrationTest {
     }
 
     private MvcResult openStream(Account viewer, Run run, String lastEventId) throws Exception {
-        MockHttpServletRequestBuilder request = get("/api/v1/activities/" + run.id() + "/stream")
+        MockHttpServletRequestBuilder request = get("/race/v1/" + run.id() + "/stream")
                 .accept(MediaType.TEXT_EVENT_STREAM);
         if (viewer != null) {
             request = request.header("Authorization", viewer.bearer());
@@ -138,7 +138,7 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         MvcResult stream = openStream(marie, run, null);
         awaitStream(stream, content -> content.contains("event:stats"));
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/pause")
+        mvc.perform(post("/race/v1/" + run.id() + "/pause")
                 .header("Authorization", marie.bearer())).andExpect(status().isNoContent());
 
         assertThat(awaitStream(stream, content -> content.contains("\"status\":\"Paused\"")))
@@ -205,7 +205,7 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
         fixtures.ingest(marie, run, 1, 3);
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/finish")
+        mvc.perform(post("/race/v1/" + run.id() + "/finish")
                 .header("Authorization", marie.bearer())).andExpect(status().isNoContent());
 
         MvcResult stream = openStream(marie, run, null);
@@ -239,7 +239,7 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         Account paul = fixtures.newAccount();
         Run run = fixtures.startRun(marie, "PRIVATE");
 
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/stream")
+        mvc.perform(get("/race/v1/" + run.id() + "/stream")
                         .accept(MediaType.TEXT_EVENT_STREAM)
                         .header("Authorization", paul.bearer()))
                 .andExpect(status().isNotFound());

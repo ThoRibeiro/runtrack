@@ -17,10 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
  * bouge dit qu'une course a eu lieu. Le §8 ne prévoit d'ailleurs l'endpoint que sur {@code /me}.
  *
  * <p>Ce service vit dans {@code course} et non dans {@code user}, bien que l'URL commence par
- * {@code /users/me} : les courses appartiennent à {@code course}, le §10 interdit qu'un autre
+ * {@code /user/v1/me} : les courses appartiennent à {@code course}, le §10 interdit qu'un autre
  * module lise ses tables, et faire dépendre {@code user} de {@code course} fermerait un cycle —
  * {@code course} dépend déjà de {@code user}. Le même arrangement sert déjà
- * {@code /users/me/devices}, porté par {@code notification}.
+ * {@code /user/v1/me/devices}, porté par {@code notification}.
  */
 @Service
 public class RunnerStatistics {

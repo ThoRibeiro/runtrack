@@ -6,8 +6,10 @@ import com.runtrack.course.infrastructure.dto.ActivityDtos;
 import com.runtrack.course.usecases.model.stats.RunnerTotals;
 import com.runtrack.course.usecases.model.stats.StatsPeriod;
 import com.runtrack.course.usecases.service.RunnerStatistics;
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.id.UserId;
+import io.swagger.v3.oas.annotations.Operation;
 import java.time.Clock;
 import java.time.ZoneId;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,13 +20,14 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Le bilan personnel : {@code GET /users/me/stats?period=}.
  *
- * <p>Servi par {@code course} bien que l'URL commence par {@code /users/me} — les courses lui
+ * <p>Servi par {@code course} bien que l'URL commence par {@code /user/v1/me} — les courses lui
  * appartiennent, et faire dépendre {@code user} de {@code course} fermerait un cycle. C'est déjà
- * l'arrangement de {@code /users/me/devices}, porté par {@code notification} : une URL décrit ce
+ * l'arrangement de {@code /user/v1/me/devices}, porté par {@code notification} : une URL décrit ce
  * que le client demande, pas quel module le sert.
  */
 @RestController
-@RequestMapping("/api/v1")
+@ApiFolders.Accounts
+@RequestMapping("/user/v1")
 class RunnerStatisticsController {
 
     private final RunnerStatistics statistics;
@@ -41,7 +44,8 @@ class RunnerStatisticsController {
      *     découper à minuit UTC ferait basculer une sortie du dimanche soir dans la semaine
      *     suivante pour la moitié de la planète
      */
-    @GetMapping("/users/me/stats")
+    @Operation(summary = "Lire son bilan sur une période")
+    @GetMapping("/me/stats")
     ActivityDtos.RunnerTotalsResponse myStats(
             @org.springframework.security.core.annotation.AuthenticationPrincipal Viewer viewer,
             @RequestParam(required = false, defaultValue = "MONTH") String period,

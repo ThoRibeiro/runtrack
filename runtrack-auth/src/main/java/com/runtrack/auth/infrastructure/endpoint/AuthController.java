@@ -6,7 +6,9 @@ import com.runtrack.auth.usecases.model.credential.Password;
 import com.runtrack.auth.infrastructure.dto.AuthDtos;
 import com.runtrack.platform.ratelimit.RateLimitProperties;
 import com.runtrack.platform.ratelimit.RateLimiter;
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.error.TooManyRequestsException;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -32,7 +34,8 @@ import org.springframework.web.bind.annotation.RestController;
  * par les tentatives qui échouent : ne compter que les succès reviendrait à ne rien compter.
  */
 @RestController
-@RequestMapping("/api/v1/auth")
+@ApiFolders.Authentication
+@RequestMapping("/auth/v1")
 class AuthController {
 
     private final Authentication authentication;
@@ -47,6 +50,7 @@ class AuthController {
         this.quotas = quotas;
     }
 
+    @Operation(summary = "Créer un compte")
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
     AuthDtos.SignUpResponse signUp(@Valid @RequestBody AuthDtos.SignUpRequest request) {
@@ -55,6 +59,7 @@ class AuthController {
         return new AuthDtos.SignUpResponse(id.toString());
     }
 
+    @Operation(summary = "Ouvrir une session")
     @PostMapping("/login")
     AuthDtos.SessionResponse logIn(HttpServletRequest http,
             @Valid @RequestBody AuthDtos.LogInRequest request) {
@@ -96,17 +101,20 @@ class AuthController {
         return (firstSeparator < 0 ? forwarded : forwarded.substring(0, firstSeparator)).trim();
     }
 
+    @Operation(summary = "Renouveler le jeton d'accès")
     @PostMapping("/refresh")
     AuthDtos.SessionResponse refresh(@Valid @RequestBody AuthDtos.RefreshRequest request) {
         return toResponse(authentication.refresh(request.refreshToken()));
     }
 
+    @Operation(summary = "Fermer la session")
     @PostMapping("/logout")
     ResponseEntity<Void> logOut(@Valid @RequestBody AuthDtos.RefreshRequest request) {
         authentication.logOut(request.refreshToken());
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Confirmer une adresse e-mail")
     @GetMapping("/verify-email")
     ResponseEntity<Void> verifyEmail(@RequestParam("token") String token) {
         authentication.confirmEmail(token);
@@ -117,12 +125,14 @@ class AuthController {
      * Répond 202 quelle que soit l'issue : dire si l'adresse existe ferait de cet endpoint
      * un énumérateur de comptes.
      */
+    @Operation(summary = "Demander la réinitialisation du mot de passe")
     @PostMapping("/password/forgot")
     @ResponseStatus(HttpStatus.ACCEPTED)
     void forgotPassword(@Valid @RequestBody AuthDtos.ForgotPasswordRequest request) {
         authentication.requestPasswordReset(request.email());
     }
 
+    @Operation(summary = "Choisir un nouveau mot de passe")
     @PostMapping("/password/reset")
     ResponseEntity<Void> resetPassword(@Valid @RequestBody AuthDtos.ResetPasswordRequest request) {
         authentication.resetPassword(request.token(), new Password(request.password()));

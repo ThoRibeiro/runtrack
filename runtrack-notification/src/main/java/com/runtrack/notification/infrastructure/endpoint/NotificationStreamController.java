@@ -6,8 +6,10 @@ import com.runtrack.notification.usecases.service.NotificationInbox;
 import com.runtrack.notification.infrastructure.realtime.NotificationInboxTopic;
 import com.runtrack.platform.realtime.LiveChannel;
 import com.runtrack.platform.realtime.PublishedEvent;
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.id.UserId;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.http.MediaType;
@@ -26,7 +28,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * panneau d'un coup, sans un second appel.
  */
 @RestController
-@RequestMapping("/api/v1")
+@ApiFolders.Notifications
+@RequestMapping("/notification/v1")
 class NotificationStreamController {
 
     /** Assez pour remplir le panneau déroulant ; au-delà, c'est la boîte complète qu'on ouvre. */
@@ -43,7 +46,8 @@ class NotificationStreamController {
         this.channel = channel;
     }
 
-    @GetMapping(path = "/notifications/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "Recevoir ses notifications en direct (SSE)")
+    @GetMapping(path = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     SseEmitter follow(
             @AuthenticationPrincipal Viewer viewer,
             @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId) {

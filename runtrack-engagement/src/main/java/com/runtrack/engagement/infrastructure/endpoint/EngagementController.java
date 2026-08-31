@@ -7,10 +7,12 @@ import com.runtrack.engagement.usecases.model.interaction.Like;
 import com.runtrack.engagement.infrastructure.dto.EngagementDtos;
 import com.runtrack.platform.ratelimit.RateLimitProperties;
 import com.runtrack.platform.ratelimit.RateLimiter;
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.error.TooManyRequestsException;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.id.ActivityId;
 import com.runtrack.shared.id.UserId;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;
@@ -24,7 +26,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,7 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
  * pour toute autre lecture de course (§5.5).
  */
 @RestController
-@RequestMapping("/api/v1")
+@ApiFolders.Races
 class EngagementController {
 
     private final Engagement engagement;
@@ -51,19 +52,22 @@ class EngagementController {
         this.quotas = quotas;
     }
 
-    @PostMapping("/activities/{id}/likes")
+    @Operation(summary = "Aimer une course")
+    @PostMapping("/race/v1/{id}/likes")
     ResponseEntity<Void> like(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         engagement.like(asViewer(viewer), ActivityId.of(id));
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/activities/{id}/likes")
+    @Operation(summary = "Retirer son like")
+    @DeleteMapping("/race/v1/{id}/likes")
     ResponseEntity<Void> unlike(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         engagement.unlike(asViewer(viewer), ActivityId.of(id));
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/activities/{id}/likes")
+    @Operation(summary = "Compter les likes d'une course")
+    @GetMapping("/race/v1/{id}/likes")
     EngagementDtos.LikesResponse likes(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         Engagement.Likes found = engagement.likesOf(asViewer(viewer), ActivityId.of(id));
         return new EngagementDtos.LikesResponse(
@@ -72,7 +76,8 @@ class EngagementController {
                 found.likedByViewer());
     }
 
-    @PostMapping("/activities/{id}/comments")
+    @Operation(summary = "Commenter une course")
+    @PostMapping("/race/v1/{id}/comments")
     @ResponseStatus(HttpStatus.CREATED)
     EngagementDtos.CommentResponse comment(
             @AuthenticationPrincipal Viewer viewer,
@@ -84,7 +89,8 @@ class EngagementController {
                 Optional.ofNullable(request.parentId()).map(CommentId::of)));
     }
 
-    @GetMapping("/activities/{id}/comments")
+    @Operation(summary = "Lister les commentaires d'une course")
+    @GetMapping("/race/v1/{id}/comments")
     EngagementDtos.CommentPage comments(
             @AuthenticationPrincipal Viewer viewer,
             @PathVariable String id,
@@ -99,7 +105,8 @@ class EngagementController {
                 page.total());
     }
 
-    @PatchMapping("/comments/{id}")
+    @Operation(summary = "Modifier son commentaire")
+    @PatchMapping("/comment/v1/{id}")
     EngagementDtos.CommentResponse edit(
             @AuthenticationPrincipal Viewer viewer,
             @PathVariable String id,
@@ -108,7 +115,8 @@ class EngagementController {
         return toResponse(engagement.edit(asViewer(viewer), CommentId.of(id), request.body()));
     }
 
-    @DeleteMapping("/comments/{id}")
+    @Operation(summary = "Supprimer un commentaire")
+    @DeleteMapping("/comment/v1/{id}")
     ResponseEntity<Void> delete(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         engagement.delete(asViewer(viewer), CommentId.of(id));
         return ResponseEntity.noContent().build();

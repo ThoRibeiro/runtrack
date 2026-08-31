@@ -21,7 +21,7 @@ class LoggingAuthMailer implements AuthMailer {
 
     @Override
     public void sendEmailVerification(String emailAddress, String secret) {
-        LOG.info("Confirmation d'adresse pour {} : /api/v1/auth/verify-email?token={}", emailAddress, secret);
+        LOG.info("Confirmation d'adresse pour {} : /auth/v1/verify-email?token={}", emailAddress, secret);
     }
 
     @Override

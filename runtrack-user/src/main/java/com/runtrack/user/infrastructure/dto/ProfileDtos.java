@@ -58,7 +58,7 @@ public final class ProfileDtos {
     public record ChangeScopeRequest(@NotBlank String accountScope) {
     }
 
-    /** Données sensibles : elles n'apparaissent que sur {@code /users/me}. */
+    /** Données sensibles : elles n'apparaissent que sur {@code /user/v1/me}. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record PhysiologyPayload(
             LocalDate birthDate,

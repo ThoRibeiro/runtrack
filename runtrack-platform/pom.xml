@@ -21,6 +21,13 @@
       <groupId>com.runtrack</groupId>
       <artifactId>runtrack-shared</artifactId>
     </dependency>
+    <!-- Les annotations qui décrivent les endpoints. Ici plutôt que dans chaque module : tous
+         en dépendent, et springdoc — qui les lit — ne vit que dans l'assemblage, où les
+         contrôleurs à documenter, eux, ne sont pas. Annotations seules, aucun code embarqué. -->
+    <dependency>
+      <groupId>io.swagger.core.v3</groupId>
+      <artifactId>swagger-annotations-jakarta</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-webmvc</artifactId>

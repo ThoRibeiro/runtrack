@@ -77,19 +77,19 @@ class SharedActivityIT {
 
     private Account newAccount() {
         String handle = "s" + System.nanoTime() % 1_000_000;
-        send("POST", "/api/v1/auth/signup", """
+        send("POST", "/auth/v1/signup", """
                 {"handle":"%s","email":"%s@example.com","displayName":"Coureur",
                  "password":"correcthorsebattery"}
                 """.formatted(handle, handle), null);
 
-        HttpResponse<String> login = send("POST", "/api/v1/auth/login", """
+        HttpResponse<String> login = send("POST", "/auth/v1/login", """
                 {"email":"%s@example.com","password":"correcthorsebattery"}
                 """.formatted(handle), null);
         return new Account(json.readTree(login.body()).get("accessToken").asText());
     }
 
     private String startPrivateRun(Account owner) {
-        HttpResponse<String> started = send("POST", "/api/v1/activities", """
+        HttpResponse<String> started = send("POST", "/race/v1", """
                 {"type":"RUN","title":"Sortie du matin","visibility":"PRIVATE"}
                 """, owner.token());
         return json.readTree(started.body()).get("id").asText();
@@ -97,7 +97,7 @@ class SharedActivityIT {
 
     private String shareLinkFor(Account owner, String runId) {
         HttpResponse<String> created = send("POST",
-                "/api/v1/activities/" + runId + "/share-links", "{}", owner.token());
+                "/race/v1/" + runId + "/share-links", "{}", owner.token());
         return json.readTree(created.body()).get("token").asText();
     }
 
@@ -113,7 +113,7 @@ class SharedActivityIT {
         String runId = startPrivateRun(marie);
         String token = shareLinkFor(marie, runId);
 
-        HttpResponse<String> shared = send("GET", "/api/v1/shared/" + token, null, null);
+        HttpResponse<String> shared = send("GET", "/shared/v1/" + token, null, null);
 
         assertThat(shared.statusCode()).isEqualTo(200);
         assertThat(json.readTree(shared.body()).get("id").asText()).isEqualTo(runId);
@@ -128,7 +128,7 @@ class SharedActivityIT {
         String token = shareLinkFor(marie, runId);
 
         var request = HttpRequest.newBuilder(
-                        URI.create("http://localhost:" + port + "/api/v1/shared/" + token + "/stream"))
+                        URI.create("http://localhost:" + port + "/shared/v1/" + token + "/stream"))
                 .header("Accept", MediaType.TEXT_EVENT_STREAM_VALUE)
                 .timeout(Duration.ofSeconds(15))
                 .build();
@@ -147,14 +147,14 @@ class SharedActivityIT {
         String runId = startPrivateRun(marie);
         String token = shareLinkFor(marie, runId);
 
-        HttpResponse<String> refused = send("POST", "/api/v1/shared/" + token + "/likes", "", null);
+        HttpResponse<String> refused = send("POST", "/shared/v1/" + token + "/likes", "", null);
 
         assertThat(refused.statusCode()).isEqualTo(403);
     }
 
     @Test
     void anUnknownTokenOpensNothing() {
-        assertThat(send("GET", "/api/v1/shared/jeton-invente", null, null).statusCode())
+        assertThat(send("GET", "/shared/v1/jeton-invente", null, null).statusCode())
                 .isEqualTo(404);
     }
 

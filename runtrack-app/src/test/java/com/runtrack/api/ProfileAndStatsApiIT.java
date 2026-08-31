@@ -40,7 +40,7 @@ class ProfileAndStatsApiIT extends ApiIntegrationTest {
     }
 
     private void finish(Account owner, Run run) throws Exception {
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/finish")
+        mvc.perform(post("/race/v1/" + run.id() + "/finish")
                 .header("Authorization", owner.bearer())).andExpect(status().isNoContent());
     }
 
@@ -56,7 +56,7 @@ class ProfileAndStatsApiIT extends ApiIntegrationTest {
     void changingTheAvatarNeedsAConfirmedAccount() throws Exception {
         Account marie = fixtures.newAccount();
 
-        mvc.perform(put("/api/v1/users/me/avatar")
+        mvc.perform(put("/user/v1/me/avatar")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"avatarUrl\":\"https://cdn.example.com/marie.jpg\"}"))
@@ -68,7 +68,7 @@ class ProfileAndStatsApiIT extends ApiIntegrationTest {
     void anAvatarUrlLongerThanTheColumnIsRefused() throws Exception {
         Account marie = fixtures.newAccount();
 
-        mvc.perform(put("/api/v1/users/me/avatar")
+        mvc.perform(put("/user/v1/me/avatar")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"avatarUrl\":\"%s\"}".formatted("h".repeat(2_001))))
@@ -78,7 +78,7 @@ class ProfileAndStatsApiIT extends ApiIntegrationTest {
 
     @Test
     void changingAnAvatarNeedsAnAccount() throws Exception {
-        mvc.perform(put("/api/v1/users/me/avatar")
+        mvc.perform(put("/user/v1/me/avatar")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"avatarUrl\":\"https://cdn.example.com/x.jpg\"}"))
                 .andExpect(status().isUnauthorized());
@@ -95,7 +95,7 @@ class ProfileAndStatsApiIT extends ApiIntegrationTest {
         fixtures.ingest(marie, second, 1, 20);
         finish(marie, second);
 
-        MvcResult read = mvc.perform(get("/api/v1/users/me/stats?period=ALL")
+        MvcResult read = mvc.perform(get("/user/v1/me/stats?period=ALL")
                         .header("Authorization", marie.bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.period").value("ALL"))
@@ -117,12 +117,12 @@ class ProfileAndStatsApiIT extends ApiIntegrationTest {
         Run run = fixtures.startRun(marie);
         fixtures.ingest(marie, run, 1, 20);
 
-        mvc.perform(get("/api/v1/users/me/stats?period=ALL")
+        mvc.perform(get("/user/v1/me/stats?period=ALL")
                         .header("Authorization", marie.bearer()))
                 .andExpect(jsonPath("$.activityCount").value(0));
 
         finish(marie, run);
-        mvc.perform(get("/api/v1/users/me/stats?period=ALL")
+        mvc.perform(get("/user/v1/me/stats?period=ALL")
                         .header("Authorization", marie.bearer()))
                 .andExpect(jsonPath("$.activityCount").value(1));
     }
@@ -136,7 +136,7 @@ class ProfileAndStatsApiIT extends ApiIntegrationTest {
         fixtures.ingest(marie, run, 1, 20);
         finish(marie, run);
 
-        mvc.perform(get("/api/v1/users/me/stats?period=ALL")
+        mvc.perform(get("/user/v1/me/stats?period=ALL")
                         .header("Authorization", paul.bearer()))
                 .andExpect(jsonPath("$.activityCount").value(0));
     }
@@ -146,7 +146,7 @@ class ProfileAndStatsApiIT extends ApiIntegrationTest {
     void aCalendarPeriodComesBackWithItsBoundary() throws Exception {
         Account marie = fixtures.newAccount();
 
-        mvc.perform(get("/api/v1/users/me/stats?period=MONTH&zone=Europe/Paris")
+        mvc.perform(get("/user/v1/me/stats?period=MONTH&zone=Europe/Paris")
                         .header("Authorization", marie.bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.period").value("MONTH"))
@@ -158,7 +158,7 @@ class ProfileAndStatsApiIT extends ApiIntegrationTest {
     void theMonthIsTheDefaultPeriod() throws Exception {
         Account marie = fixtures.newAccount();
 
-        mvc.perform(get("/api/v1/users/me/stats").header("Authorization", marie.bearer()))
+        mvc.perform(get("/user/v1/me/stats").header("Authorization", marie.bearer()))
                 .andExpect(jsonPath("$.period").value("MONTH"));
     }
 
@@ -166,12 +166,12 @@ class ProfileAndStatsApiIT extends ApiIntegrationTest {
     void anUnknownPeriodOrZoneIsARequestError() throws Exception {
         Account marie = fixtures.newAccount();
 
-        mvc.perform(get("/api/v1/users/me/stats?period=DECENNIE")
+        mvc.perform(get("/user/v1/me/stats?period=DECENNIE")
                         .header("Authorization", marie.bearer()))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("INVALID_VALUE"));
 
-        mvc.perform(get("/api/v1/users/me/stats?zone=Mars/Olympus")
+        mvc.perform(get("/user/v1/me/stats?zone=Mars/Olympus")
                         .header("Authorization", marie.bearer()))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("INVALID_VALUE"));
@@ -179,6 +179,6 @@ class ProfileAndStatsApiIT extends ApiIntegrationTest {
 
     @Test
     void theTotalsNeedAnAccount() throws Exception {
-        mvc.perform(get("/api/v1/users/me/stats")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/user/v1/me/stats")).andExpect(status().isUnauthorized());
     }
 }

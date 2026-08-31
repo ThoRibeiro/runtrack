@@ -1,11 +1,13 @@
 package com.runtrack.social.infrastructure.endpoint;
 
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.error.ForbiddenException;
 import com.runtrack.shared.id.UserId;
 import com.runtrack.social.usecases.service.SocialGraph;
 import com.runtrack.social.usecases.model.graph.Follow;
 import com.runtrack.social.infrastructure.dto.SocialDtos;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Abonnements, demandes et blocages. Aucune règle ici : tout est dans le cas d'usage. */
 @RestController
-@RequestMapping("/api/v1")
+@ApiFolders.Accounts
+@RequestMapping("/user/v1")
 class SocialController {
 
     private final SocialGraph graph;
@@ -28,28 +31,33 @@ class SocialController {
         this.graph = graph;
     }
 
-    @PostMapping("/users/{id}/follow")
+    @Operation(summary = "Suivre un coureur")
+    @PostMapping("/{id}/follow")
     SocialDtos.FollowResponse follow(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         Follow follow = graph.follow(requireUser(viewer), UserId.of(id));
         return new SocialDtos.FollowResponse(follow.status().name(), !follow.isAccepted());
     }
 
-    @DeleteMapping("/users/{id}/follow")
+    @Operation(summary = "Ne plus suivre un coureur")
+    @DeleteMapping("/{id}/follow")
     ResponseEntity<Void> unfollow(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         graph.unfollow(requireUser(viewer), UserId.of(id));
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/users/{id}/followers")
+    @Operation(summary = "Lister les abonnés d'un coureur")
+    @GetMapping("/{id}/followers")
     SocialDtos.UserIdList followers(@PathVariable String id) {
         return SocialDtos.UserIdList.of(graph.followers(UserId.of(id)));
     }
 
-    @GetMapping("/users/{id}/following")
+    @Operation(summary = "Lister les abonnements d'un coureur")
+    @GetMapping("/{id}/following")
     SocialDtos.UserIdList following(@PathVariable String id) {
         return SocialDtos.UserIdList.of(graph.followees(UserId.of(id)));
     }
 
+    @Operation(summary = "Lister les demandes d'abonnement reçues")
     @GetMapping("/me/follow-requests")
     List<SocialDtos.PendingRequest> pendingRequests(@AuthenticationPrincipal Viewer viewer) {
         return graph.pendingRequests(requireUser(viewer)).stream()
@@ -58,25 +66,29 @@ class SocialController {
                 .toList();
     }
 
-    @PostMapping("/follow-requests/{id}/accept")
+    @Operation(summary = "Accepter une demande d'abonnement")
+    @PostMapping("/me/follow-requests/{id}/accept")
     ResponseEntity<Void> accept(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         graph.acceptRequest(requireUser(viewer), UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/follow-requests/{id}/reject")
+    @Operation(summary = "Refuser une demande d'abonnement")
+    @PostMapping("/me/follow-requests/{id}/reject")
     ResponseEntity<Void> reject(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         graph.rejectRequest(requireUser(viewer), UUID.fromString(id));
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/users/{id}/block")
+    @Operation(summary = "Bloquer un coureur")
+    @PostMapping("/{id}/block")
     ResponseEntity<Void> block(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         graph.block(requireUser(viewer), UserId.of(id));
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/users/{id}/block")
+    @Operation(summary = "Débloquer un coureur")
+    @DeleteMapping("/{id}/block")
     ResponseEntity<Void> unblock(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         graph.unblock(requireUser(viewer), UserId.of(id));
         return ResponseEntity.noContent().build();
