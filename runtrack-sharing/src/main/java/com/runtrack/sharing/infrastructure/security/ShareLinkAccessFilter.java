@@ -21,7 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /**
  * La chaîne du §5.4, en une classe.
  *
- * <p>Une requête sur {@code /api/v1/shared/{token}/…} est résolue ici : le jeton devient un
+ * <p>Une requête sur {@code /shared/v1/{token}/…} est résolue ici : le jeton devient un
  * {@link Viewer.ShareLinkHolder} déjà porteur de l'{@code ActivityId}, puis la requête est
  * <b>réacheminée</b> vers le chemin de {@code course} correspondant.
  *
@@ -36,8 +36,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class ShareLinkAccessFilter extends OncePerRequestFilter {
 
-    static final String SHARED_PREFIX = "/api/v1/shared/";
-    static final String ACTIVITIES_PREFIX = "/api/v1/activities/";
+    static final String SHARED_PREFIX = "/shared/v1/";
+    static final String RACE_PREFIX = "/race/v1/";
 
     private final ShareLinks links;
 
@@ -68,7 +68,7 @@ public class ShareLinkAccessFilter extends OncePerRequestFilter {
                 new Viewer.ShareLinkHolder(activity.get()), null, List.of()));
 
         request.getRequestDispatcher(
-                        ACTIVITIES_PREFIX + activity.get() + suffixOf(request.getRequestURI()))
+                        RACE_PREFIX + activity.get() + suffixOf(request.getRequestURI()))
                 .forward(request, response);
     }
 

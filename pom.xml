@@ -45,6 +45,10 @@
         <archunit.version>1.5.0</archunit.version>
         <!-- Argon2PasswordEncoder needs BouncyCastle, and Boot does not manage it. -->
         <bouncycastle.version>1.85.2</bouncycastle.version>
+        <!-- The annotations that document the endpoints. Springdoc pulls the same coordinates
+             transitively; keep this in step with it when springdoc is bumped, or the enforcer's
+             upper-bound rule will say so. -->
+        <swagger-annotations.version>2.2.43</swagger-annotations.version>
 
         <!-- Every plugin version is pinned: an unpinned plugin makes the build
              non-reproducible the day the parent bumps it. -->
@@ -75,6 +79,11 @@
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcprov-jdk18on</artifactId>
                 <version>${bouncycastle.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-annotations-jakarta</artifactId>
+                <version>${swagger-annotations.version}</version>
             </dependency>
 
             <dependency>

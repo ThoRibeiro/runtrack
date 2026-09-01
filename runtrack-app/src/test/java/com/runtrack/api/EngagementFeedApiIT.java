@@ -47,13 +47,13 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
     }
 
     private void follow(Account follower, Account followee) throws Exception {
-        mvc.perform(post("/api/v1/users/" + followee.id() + "/follow")
+        mvc.perform(post("/user/v1/" + followee.id() + "/follow")
                 .header("Authorization", follower.bearer())).andExpect(status().isOk());
     }
 
     private JsonNode feedOf(Account reader) {
         try {
-            MvcResult read = mvc.perform(get("/api/v1/feed").header("Authorization", reader.bearer()))
+            MvcResult read = mvc.perform(get("/feed/v1").header("Authorization", reader.bearer()))
                     .andExpect(status().isOk()).andReturn();
             return json.readTree(read.getResponse().getContentAsString()).get("items");
         } catch (Exception failure) {
@@ -83,7 +83,7 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
         String payload = parentId == null
                 ? "{\"body\":\"%s\"}".formatted(body)
                 : "{\"body\":\"%s\",\"parentId\":\"%s\"}".formatted(body, parentId);
-        MvcResult posted = mvc.perform(post("/api/v1/activities/" + run.id() + "/comments")
+        MvcResult posted = mvc.perform(post("/race/v1/" + run.id() + "/comments")
                         .header("Authorization", author.bearer())
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isCreated()).andReturn();
@@ -96,23 +96,23 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
         Account paul = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(post("/race/v1/" + run.id() + "/likes")
                 .header("Authorization", paul.bearer())).andExpect(status().isNoContent());
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(get("/race/v1/" + run.id() + "/likes")
                         .header("Authorization", paul.bearer()))
                 .andExpect(jsonPath("$.total").value(1))
                 .andExpect(jsonPath("$.likedByViewer").value(true));
 
         // Aimer deux fois est un clic renvoyé, pas un second « j'aime ».
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(post("/race/v1/" + run.id() + "/likes")
                 .header("Authorization", paul.bearer())).andExpect(status().isNoContent());
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(get("/race/v1/" + run.id() + "/likes")
                         .header("Authorization", paul.bearer()))
                 .andExpect(jsonPath("$.total").value(1));
 
-        mvc.perform(delete("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(delete("/race/v1/" + run.id() + "/likes")
                 .header("Authorization", paul.bearer())).andExpect(status().isNoContent());
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(get("/race/v1/" + run.id() + "/likes")
                         .header("Authorization", paul.bearer()))
                 .andExpect(jsonPath("$.total").value(0));
     }
@@ -124,7 +124,7 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
         Account paul = fixtures.newAccount();
         Run run = fixtures.startRun(marie, "PRIVATE");
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(post("/race/v1/" + run.id() + "/likes")
                         .header("Authorization", paul.bearer()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ACTIVITY_NOT_FOUND"));
@@ -139,23 +139,23 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
         String comment = postComment(paul, run, "Bravo", null);
         String reply = postComment(marie, run, "Merci", comment);
 
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/comments")
+        mvc.perform(get("/race/v1/" + run.id() + "/comments")
                         .header("Authorization", paul.bearer()))
                 .andExpect(jsonPath("$.items.length()").value(2))
                 .andExpect(jsonPath("$.items[1].parentId").value(comment));
 
-        mvc.perform(patch("/api/v1/comments/" + comment)
+        mvc.perform(patch("/comment/v1/" + comment)
                         .header("Authorization", paul.bearer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Bravo !\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.body").value("Bravo !"))
                 .andExpect(jsonPath("$.editedAt").exists());
 
-        mvc.perform(delete("/api/v1/comments/" + comment).header("Authorization", paul.bearer()))
+        mvc.perform(delete("/comment/v1/" + comment).header("Authorization", paul.bearer()))
                 .andExpect(status().isNoContent());
 
         // La ligne reste — la réponse s'y accroche — mais son texte ne ressort plus.
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/comments")
+        mvc.perform(get("/race/v1/" + run.id() + "/comments")
                         .header("Authorization", paul.bearer()))
                 .andExpect(jsonPath("$.items.length()").value(2))
                 .andExpect(jsonPath("$.items[0].deleted").value(true))
@@ -170,7 +170,7 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
         Run run = fixtures.startRun(marie);
         String comment = postComment(paul, run, "Bravo", null);
 
-        mvc.perform(patch("/api/v1/comments/" + comment)
+        mvc.perform(patch("/comment/v1/" + comment)
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Autre\"}"))
                 .andExpect(status().isNotFound())
@@ -182,7 +182,7 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/comments")
+        mvc.perform(post("/race/v1/" + run.id() + "/comments")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"body\":\"%s\"}".formatted("a".repeat(1_001))))
@@ -202,7 +202,7 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
         assertThat(feedOf(paul).get(0).get("activityId").asText()).isEqualTo(run.id());
         assertThat(feedOf(paul).get(0).get("author").get("displayName").asText()).isEqualTo("Coureur");
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(post("/race/v1/" + run.id() + "/likes")
                 .header("Authorization", paul.bearer())).andExpect(status().isNoContent());
         postComment(paul, run, "Bravo", null);
 
@@ -220,7 +220,7 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
         awaitValue(() -> feedOf(paul), items -> !items.isEmpty());
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .put("/api/v1/activities/" + run.id() + "/visibility")
+                        .put("/race/v1/" + run.id() + "/visibility")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"visibility\":\"PRIVATE\"}"))
@@ -237,7 +237,7 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
         Run run = fixtures.startRun(marie);
         awaitValue(() -> feedOf(paul), items -> !items.isEmpty());
 
-        mvc.perform(delete("/api/v1/activities/" + run.id()).header("Authorization", marie.bearer()))
+        mvc.perform(delete("/race/v1/" + run.id()).header("Authorization", marie.bearer()))
                 .andExpect(status().isNoContent());
 
         awaitValue(() -> feedOf(paul), JsonNode::isEmpty);
@@ -245,7 +245,7 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
 
     @Test
     void theFeedNeedsAnAccount() throws Exception {
-        mvc.perform(get("/api/v1/feed")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/feed/v1")).andExpect(status().isUnauthorized());
     }
 
     /** L'agrégation du §7 : plusieurs « j'aime » sur une course font une notification, pas dix. */
@@ -256,14 +256,14 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
         Account lea = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(post("/race/v1/" + run.id() + "/likes")
                 .header("Authorization", paul.bearer())).andExpect(status().isNoContent());
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(post("/race/v1/" + run.id() + "/likes")
                 .header("Authorization", lea.bearer())).andExpect(status().isNoContent());
 
         JsonNode aggregated = awaitValue(() -> {
             try {
-                MvcResult listed = mvc.perform(get("/api/v1/notifications")
+                MvcResult listed = mvc.perform(get("/notification/v1")
                         .header("Authorization", marie.bearer())).andReturn();
                 for (JsonNode item : json.readTree(listed.getResponse().getContentAsString())
                         .get("items")) {

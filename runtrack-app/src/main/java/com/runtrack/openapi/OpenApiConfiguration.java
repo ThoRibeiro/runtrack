@@ -28,6 +28,16 @@ class OpenApiConfiguration {
 
     private static final String BEARER = "bearerAuth";
 
+    /**
+     * Les préfixes exposés, dans l'ordre du sélecteur de groupes. {@code /shared/v1/**} n'y est
+     * pas : ce chemin n'a pas de contrôleur — le filtre de {@code sharing} le réachemine vers
+     * {@code /race/v1} — et springdoc ne peut donc rien en décrire.
+     */
+    private static final String[] ALL_PREFIXES = {
+        "/auth/v1/**", "/user/v1", "/user/v1/**", "/race/v1", "/race/v1/**", "/comment/v1/**",
+        "/share-link/v1/**", "/notification/v1", "/notification/v1/**", "/feed/v1", "/feed/v1/**",
+    };
+
     @Bean
     OpenAPI runtrackOpenApi() {
         return new OpenAPI()
@@ -44,8 +54,8 @@ class OpenApiConfiguration {
                                 La pagination est **par curseur** — jamais offset/limit : on renvoie
                                 le `nextCursor` reçu à la page précédente.
 
-                                Deux flux sont en Server-Sent Events, `GET /activities/{id}/stream`
-                                et `GET /notifications/stream`. Chaque événement porte un `id:` ;
+                                Deux flux sont en Server-Sent Events, `GET /race/v1/{id}/stream`
+                                et `GET /notification/v1/stream`. Chaque événement porte un `id:` ;
                                 le renvoyer en `Last-Event-ID` à la reconnexion reprend sans trou.
                                 """)
                         .contact(new Contact().name("RunTrack"))
@@ -56,7 +66,7 @@ class OpenApiConfiguration {
                         .scheme("bearer")
                         .bearerFormat("JWT")
                         .description("""
-                                Jeton d'accès obtenu par `POST /auth/login`, valable 15 minutes.
+                                Jeton d'accès obtenu par `POST /auth/v1/login`, valable 15 minutes.
                                 Certaines lectures s'en passent : une course publique se lit sans
                                 compte, et un lien de partage ouvre une course privée sans jeton.
                                 """)))
@@ -67,50 +77,50 @@ class OpenApiConfiguration {
 
     @Bean
     GroupedOpenApi authApi() {
-        return group("1-auth", "/api/v1/auth/**");
+        return group("1-auth", "/auth/v1/**");
     }
 
+    /**
+     * Tout ce qui pend d'un compte : profil, graphe social, appareils, préférences, bilans, et
+     * les courses d'un coureur. Le groupe suit le préfixe, pas le module : {@code user},
+     * {@code social}, {@code course} et {@code notification} servent tous les quatre du
+     * {@code /user/v1}, et un lecteur qui cherche « ce que je peux faire sur un compte » n'a pas
+     * à savoir lequel répond.
+     */
     @Bean
     GroupedOpenApi userApi() {
-        return group("2-user", "/api/v1/users/me/**", "/api/v1/users");
+        return group("2-user", "/user/v1", "/user/v1/**");
     }
 
     @Bean
-    GroupedOpenApi socialApi() {
-        return group("3-social", "/api/v1/users/*/follow", "/api/v1/users/*/followers",
-                "/api/v1/users/*/following", "/api/v1/follow-requests/**",
-                "/api/v1/me/follow-requests", "/api/v1/users/*/block");
+    GroupedOpenApi raceApi() {
+        return group("3-race", "/race/v1", "/race/v1/**");
     }
 
     @Bean
-    GroupedOpenApi courseApi() {
-        return group("4-course", "/api/v1/activities/**", "/api/v1/users/*/activities");
+    GroupedOpenApi commentApi() {
+        return group("4-comment", "/comment/v1/**");
     }
 
     @Bean
-    GroupedOpenApi sharingApi() {
-        return group("5-sharing", "/api/v1/share-links/**", "/api/v1/shared/**");
-    }
-
-    @Bean
-    GroupedOpenApi engagementApi() {
-        return group("6-engagement", "/api/v1/comments/**");
+    GroupedOpenApi shareLinkApi() {
+        return group("5-share-link", "/share-link/v1/**");
     }
 
     @Bean
     GroupedOpenApi notificationApi() {
-        return group("7-notification", "/api/v1/notifications/**");
+        return group("6-notification", "/notification/v1", "/notification/v1/**");
     }
 
     @Bean
     GroupedOpenApi feedApi() {
-        return group("8-feed", "/api/v1/feed");
+        return group("7-feed", "/feed/v1", "/feed/v1/**");
     }
 
-    /** Le groupe complet, pour qui cherche un endpoint sans savoir à quel module il appartient. */
+    /** Le groupe complet, pour qui cherche un endpoint sans savoir de quelle ressource il pend. */
     @Bean
     GroupedOpenApi everything() {
-        return group("9-tout", "/api/v1/**");
+        return group("8-tout", ALL_PREFIXES);
     }
 
     private static GroupedOpenApi group(String name, String... paths) {

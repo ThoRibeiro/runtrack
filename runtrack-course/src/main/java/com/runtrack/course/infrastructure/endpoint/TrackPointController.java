@@ -5,9 +5,11 @@ import static com.runtrack.course.infrastructure.endpoint.Principals.requireUser
 import com.runtrack.course.infrastructure.dto.PointDtos;
 import com.runtrack.platform.ratelimit.RateLimitProperties;
 import com.runtrack.platform.ratelimit.RateLimiter;
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.error.TooManyRequestsException;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.id.ActivityId;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.Optional;
 import org.springframework.http.MediaType;
@@ -36,7 +38,8 @@ import org.springframework.web.bind.annotation.RestController;
  * tampon en ajoute quelques-uns d'un coup après une coupure.
  */
 @RestController
-@RequestMapping("/api/v1")
+@ApiFolders.Races
+@RequestMapping("/race/v1")
 class TrackPointController {
 
     private final IdempotentIngestion ingestion;
@@ -51,7 +54,8 @@ class TrackPointController {
         this.quotas = quotas;
     }
 
-    @PostMapping(path = "/activities/{id}/points", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Envoyer un lot de points GPS")
+    @PostMapping(path = "/{id}/points", produces = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<String> ingest(
             @AuthenticationPrincipal Viewer viewer,
             @PathVariable String id,

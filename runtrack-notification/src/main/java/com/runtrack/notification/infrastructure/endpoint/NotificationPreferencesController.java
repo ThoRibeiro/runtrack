@@ -7,7 +7,9 @@ import com.runtrack.notification.usecases.model.inbox.NotificationPreferences;
 import com.runtrack.notification.usecases.model.inbox.NotificationType;
 import com.runtrack.notification.usecases.model.push.QuietHours;
 import com.runtrack.notification.infrastructure.dto.NotificationDtos;
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.access.Viewer;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.time.ZoneId;
 import java.util.Arrays;
@@ -24,7 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Ce que le destinataire choisit de recevoir. */
 @RestController
-@RequestMapping("/api/v1/users/me/notification-preferences")
+@ApiFolders.Accounts
+@RequestMapping("/user/v1/me/notification-preferences")
 class NotificationPreferencesController {
 
     private final NotificationSettings settings;
@@ -33,11 +36,13 @@ class NotificationPreferencesController {
         this.settings = settings;
     }
 
+    @Operation(summary = "Lire ses préférences de notification")
     @GetMapping
     NotificationDtos.PreferencesResponse read(@AuthenticationPrincipal Viewer viewer) {
         return toResponse(settings.of(requireUser(viewer)));
     }
 
+    @Operation(summary = "Modifier ses préférences de notification")
     @PatchMapping
     NotificationDtos.PreferencesResponse update(
             @AuthenticationPrincipal Viewer viewer,

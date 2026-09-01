@@ -122,7 +122,10 @@ springdoc:
   # déplace l'URL que tout le monde a mise en favori.
   swagger-ui:
     path: /swagger-ui.html
-    # Les groupes suivent les modules : on ouvre celui qu'on cherche, pas les cent endpoints.
+    # L'UI n'affiche qu'un groupe à la fois, et prend le premier de la liste — « 1-auth » —
+    # sans ceci : on croit alors que l'API se limite à l'authentification. Elle s'ouvre donc
+    # sur le groupe complet, et le sélecteur en haut de page mène aux ressources une à une.
+    urls-primary-name: 8-tout
     display-request-duration: true
     operations-sorter: method
   api-docs:

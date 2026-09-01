@@ -1,5 +1,6 @@
 package com.runtrack.user.infrastructure.endpoint;
 
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.error.ForbiddenException;
@@ -7,6 +8,7 @@ import com.runtrack.shared.id.UserId;
 import com.runtrack.user.usecases.service.UserAccounts;
 import com.runtrack.user.usecases.model.profile.Handle;
 import com.runtrack.user.infrastructure.dto.ProfileDtos;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +31,8 @@ import org.springframework.web.bind.annotation.RestController;
  * module {@code auth}, ce qui lui évite de dépendre de ce module.
  */
 @RestController
-@RequestMapping("/api/v1")
+@ApiFolders.Accounts
+@RequestMapping("/user/v1")
 class UserController {
 
     private final UserAccounts accounts;
@@ -38,12 +41,14 @@ class UserController {
         this.accounts = accounts;
     }
 
-    @GetMapping("/users/me")
+    @Operation(summary = "Lire son propre profil")
+    @GetMapping("/me")
     ProfileDtos.MyProfile me(@AuthenticationPrincipal Viewer viewer) {
         return ProfileMapper.toMyProfile(accounts.byId(requireUser(viewer)));
     }
 
-    @PatchMapping("/users/me")
+    @Operation(summary = "Modifier son nom affiché, sa bio ou son avatar")
+    @PatchMapping("/me")
     ProfileDtos.MyProfile updateMe(
             @AuthenticationPrincipal Viewer viewer,
             @Valid @RequestBody ProfileDtos.UpdateProfileRequest request) {
@@ -53,7 +58,8 @@ class UserController {
         return ProfileMapper.toMyProfile(accounts.byId(id));
     }
 
-    @PutMapping("/users/me/handle")
+    @Operation(summary = "Changer son identifiant public")
+    @PutMapping("/me/handle")
     ProfileDtos.MyProfile changeHandle(
             @AuthenticationPrincipal Viewer viewer,
             @Valid @RequestBody ProfileDtos.ChangeHandleRequest request) {
@@ -63,7 +69,8 @@ class UserController {
         return ProfileMapper.toMyProfile(accounts.byId(id));
     }
 
-    @PutMapping("/users/me/avatar")
+    @Operation(summary = "Remplacer son avatar")
+    @PutMapping("/me/avatar")
     ProfileDtos.MyProfile changeAvatar(
             @AuthenticationPrincipal Viewer viewer,
             @Valid @RequestBody ProfileDtos.ChangeAvatarRequest request) {
@@ -73,7 +80,8 @@ class UserController {
         return ProfileMapper.toMyProfile(accounts.byId(id));
     }
 
-    @PutMapping("/users/me/visibility")
+    @Operation(summary = "Choisir qui voit son compte")
+    @PutMapping("/me/visibility")
     ProfileDtos.MyProfile changeVisibility(
             @AuthenticationPrincipal Viewer viewer,
             @Valid @RequestBody ProfileDtos.ChangeScopeRequest request) {
@@ -83,12 +91,14 @@ class UserController {
         return ProfileMapper.toMyProfile(accounts.byId(id));
     }
 
-    @GetMapping("/users/me/physiology")
+    @Operation(summary = "Lire ses données physiologiques")
+    @GetMapping("/me/physiology")
     ProfileDtos.PhysiologyPayload physiology(@AuthenticationPrincipal Viewer viewer) {
         return ProfileMapper.toPayload(accounts.byId(requireUser(viewer)).physiology());
     }
 
-    @PutMapping("/users/me/physiology")
+    @Operation(summary = "Enregistrer ses données physiologiques")
+    @PutMapping("/me/physiology")
     ProfileDtos.PhysiologyPayload updatePhysiology(
             @AuthenticationPrincipal Viewer viewer,
             @Valid @RequestBody ProfileDtos.PhysiologyPayload payload) {
@@ -98,18 +108,21 @@ class UserController {
         return ProfileMapper.toPayload(accounts.byId(id).physiology());
     }
 
-    @DeleteMapping("/users/me")
+    @Operation(summary = "Supprimer son compte")
+    @DeleteMapping("/me")
     ResponseEntity<Void> deleteMe(@AuthenticationPrincipal Viewer viewer) {
         accounts.delete(requireUser(viewer));
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/users/{handle}")
+    @Operation(summary = "Lire le profil public d'un coureur")
+    @GetMapping("/{handle}")
     ProfileDtos.PublicProfile byHandle(@PathVariable String handle) {
         return ProfileMapper.toPublicProfile(accounts.byHandle(new Handle(handle)));
     }
 
-    @GetMapping("/users")
+    @Operation(summary = "Chercher un coureur")
+    @GetMapping
     List<ProfileDtos.PublicProfile> search(@RequestParam("search") String search) {
         return accounts.search(search).stream().map(ProfileMapper::toPublicProfile).toList();
     }

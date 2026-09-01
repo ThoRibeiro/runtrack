@@ -52,7 +52,7 @@ class CacheBehaviourIT extends ApiIntegrationTest {
 
     private Account newAccount() throws Exception {
         String handle = "k" + COUNTER.incrementAndGet() + System.nanoTime() % 100_000;
-        MvcResult created = mvc.perform(post("/api/v1/auth/signup")
+        MvcResult created = mvc.perform(post("/auth/v1/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"handle":"%s","email":"%s@example.com","displayName":"Coureur",
@@ -61,7 +61,7 @@ class CacheBehaviourIT extends ApiIntegrationTest {
                 .andExpect(status().isCreated()).andReturn();
         String id = json.readTree(created.getResponse().getContentAsString()).get("userId").asText();
 
-        MvcResult login = mvc.perform(post("/api/v1/auth/login")
+        MvcResult login = mvc.perform(post("/auth/v1/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s@example.com","password":"correcthorsebattery"}
@@ -134,7 +134,7 @@ class CacheBehaviourIT extends ApiIntegrationTest {
         assertThat(redis.hasKey(CacheKey.userSummary(marie.id()))).isTrue();
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .put("/api/v1/users/me/handle")
+                        .put("/user/v1/me/handle")
                         .header("Authorization", "Bearer " + marie.token())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"handle\":\"%s\"}".formatted(marie.handle())))
@@ -148,7 +148,7 @@ class CacheBehaviourIT extends ApiIntegrationTest {
     void followerListsAreCached() throws Exception {
         Account marie = newAccount();
         Account paul = newAccount();
-        mvc.perform(post("/api/v1/users/" + marie.id() + "/follow")
+        mvc.perform(post("/user/v1/" + marie.id() + "/follow")
                         .header("Authorization", "Bearer " + paul.token()))
                 .andExpect(status().isOk());
         redis.delete(CacheKey.followers(marie.id()));
@@ -168,7 +168,7 @@ class CacheBehaviourIT extends ApiIntegrationTest {
         assertThat(redis.hasKey(CacheKey.followers(marie.id()))).isTrue();
         assertThat(redis.hasKey(CacheKey.followees(paul.id()))).isTrue();
 
-        mvc.perform(post("/api/v1/users/" + marie.id() + "/follow")
+        mvc.perform(post("/user/v1/" + marie.id() + "/follow")
                         .header("Authorization", "Bearer " + paul.token()))
                 .andExpect(status().isOk());
 
@@ -181,12 +181,12 @@ class CacheBehaviourIT extends ApiIntegrationTest {
     void unfollowingEvictsBothSides() throws Exception {
         Account marie = newAccount();
         Account paul = newAccount();
-        mvc.perform(post("/api/v1/users/" + marie.id() + "/follow")
+        mvc.perform(post("/user/v1/" + marie.id() + "/follow")
                 .header("Authorization", "Bearer " + paul.token()));
         social.acceptedFollowerIds(UserId.of(marie.id()));
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .delete("/api/v1/users/" + marie.id() + "/follow")
+                        .delete("/user/v1/" + marie.id() + "/follow")
                         .header("Authorization", "Bearer " + paul.token()))
                 .andExpect(status().isNoContent());
 
@@ -202,7 +202,7 @@ class CacheBehaviourIT extends ApiIntegrationTest {
 
         assertThat(social.isBlockedEitherWay(UserId.of(marie.id()), UserId.of(paul.id()))).isFalse();
 
-        mvc.perform(post("/api/v1/users/" + paul.id() + "/block")
+        mvc.perform(post("/user/v1/" + paul.id() + "/block")
                         .header("Authorization", "Bearer " + marie.token()))
                 .andExpect(status().isNoContent());
 
@@ -213,7 +213,7 @@ class CacheBehaviourIT extends ApiIntegrationTest {
     @Test
     void onlyFinishedRunsAreCached() throws Exception {
         Account marie = newAccount();
-        MvcResult started = mvc.perform(post("/api/v1/activities")
+        MvcResult started = mvc.perform(post("/race/v1")
                         .header("Authorization", "Bearer " + marie.token())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"RUN\",\"title\":\"Sortie\",\"visibility\":\"PUBLIC\"}"))
@@ -223,7 +223,7 @@ class CacheBehaviourIT extends ApiIntegrationTest {
         courses.summary(ActivityId.of(runId));
         assertThat(redis.hasKey(CacheKey.activitySummary(runId))).isFalse();
 
-        mvc.perform(post("/api/v1/activities/" + runId + "/finish")
+        mvc.perform(post("/race/v1/" + runId + "/finish")
                         .header("Authorization", "Bearer " + marie.token()))
                 .andExpect(status().isNoContent());
 

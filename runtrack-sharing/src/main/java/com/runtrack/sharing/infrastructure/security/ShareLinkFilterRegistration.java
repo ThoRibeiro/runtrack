@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
  * pose bien son {@code Viewer.ShareLinkHolder} — puis la chaîne de sécurité s'exécute et installe
  * <em>son</em> contexte par-dessus. Le lecteur disparaissait, la course privée redevenait
  * introuvable, et rien ne signalait l'écrasement. Placé derrière, la chaîne a déjà laissé passer
- * {@code /api/v1/shared/**} (permitAll) et le contexte qu'on pose est le dernier mot.
+ * {@code /shared/v1/**} (permitAll) et le contexte qu'on pose est le dernier mot.
  *
  * <p>Le réacheminement vers {@code course} ne repasse pas par la chaîne — celle-ci ne s'applique
  * qu'aux requêtes entrantes, asynchrones et d'erreur — de sorte que le lecteur arrive intact au
@@ -30,7 +30,7 @@ class ShareLinkFilterRegistration {
             ShareLinkAccessFilter filter) {
 
         var registration = new FilterRegistrationBean<>(filter);
-        registration.addUrlPatterns("/api/v1/shared/*");
+        registration.addUrlPatterns("/shared/v1/*");
         // Juste après l'ordre par défaut de la chaîne de Spring Security (-100). La constante vit
         // dans une auto-configuration que ce module n'a pas à embarquer pour un entier.
         registration.setOrder(-99);

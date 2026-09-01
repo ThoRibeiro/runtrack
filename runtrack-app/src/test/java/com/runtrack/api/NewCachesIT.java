@@ -56,7 +56,7 @@ class NewCachesIT extends ApiIntegrationTest {
     }
 
     private String issueLinkFor(Account owner, Run run) throws Exception {
-        MvcResult created = mvc.perform(post("/api/v1/activities/" + run.id() + "/share-links")
+        MvcResult created = mvc.perform(post("/race/v1/" + run.id() + "/share-links")
                         .header("Authorization", owner.bearer())
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isCreated()).andReturn();
@@ -76,13 +76,13 @@ class NewCachesIT extends ApiIntegrationTest {
         String key = CacheKey.shareToken(hashOf(token));
 
         assertThat(redis.hasKey(key)).isFalse();
-        mvc.perform(get("/api/v1/shared/" + token));
+        mvc.perform(get("/shared/v1/" + token));
 
         assertThat(redis.hasKey(key)).isTrue();
         // Et la seconde résolution rend toujours la même course.
-        mvc.perform(get("/api/v1/shared/" + token))
+        mvc.perform(get("/shared/v1/" + token))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .forwardedUrl("/api/v1/activities/" + run.id()));
+                        .forwardedUrl("/race/v1/" + run.id()));
     }
 
     /**
@@ -96,18 +96,18 @@ class NewCachesIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie, "PRIVATE");
         String token = issueLinkFor(marie, run);
-        mvc.perform(get("/api/v1/shared/" + token));
+        mvc.perform(get("/shared/v1/" + token));
         assertThat(redis.hasKey(CacheKey.shareToken(hashOf(token)))).isTrue();
 
-        MvcResult listed = mvc.perform(get("/api/v1/activities/" + run.id() + "/share-links")
+        MvcResult listed = mvc.perform(get("/race/v1/" + run.id() + "/share-links")
                 .header("Authorization", marie.bearer())).andReturn();
         String linkId = json.readTree(listed.getResponse().getContentAsString())
                 .get("items").get(0).get("id").asText();
-        mvc.perform(delete("/api/v1/share-links/" + linkId).header("Authorization", marie.bearer()))
+        mvc.perform(delete("/share-link/v1/" + linkId).header("Authorization", marie.bearer()))
                 .andExpect(status().isNoContent());
 
         assertThat(redis.hasKey(CacheKey.shareToken(hashOf(token)))).isFalse();
-        mvc.perform(get("/api/v1/shared/" + token)).andExpect(status().isNotFound());
+        mvc.perform(get("/shared/v1/" + token)).andExpect(status().isNotFound());
     }
 
     /** Un jeton inconnu n'écrit rien : sinon qui tâtonne peuplerait le cache à volonté. */
@@ -115,7 +115,7 @@ class NewCachesIT extends ApiIntegrationTest {
     void anUnknownTokenIsNeverCached() throws Exception {
         String invented = "jeton-" + UUID.randomUUID();
 
-        mvc.perform(get("/api/v1/shared/" + invented)).andExpect(status().isNotFound());
+        mvc.perform(get("/shared/v1/" + invented)).andExpect(status().isNotFound());
 
         assertThat(redis.hasKey(CacheKey.shareToken(hashOf(invented)))).isFalse();
     }
@@ -128,17 +128,17 @@ class NewCachesIT extends ApiIntegrationTest {
         Run run = fixtures.startRun(marie);
         String key = CacheKey.activityCounters(run.id());
 
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(get("/race/v1/" + run.id() + "/likes")
                         .header("Authorization", paul.bearer()))
                 .andExpect(jsonPath("$.total").value(0));
         assertThat(redis.hasKey(key)).isTrue();
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(post("/race/v1/" + run.id() + "/likes")
                 .header("Authorization", paul.bearer())).andExpect(status().isNoContent());
 
         // L'invalidation a lieu après commit : sans elle, le compteur resterait à zéro une minute.
         assertThat(redis.hasKey(key)).isFalse();
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/likes")
+        mvc.perform(get("/race/v1/" + run.id() + "/likes")
                         .header("Authorization", paul.bearer()))
                 .andExpect(jsonPath("$.total").value(1));
     }
@@ -149,12 +149,12 @@ class NewCachesIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/comments")
+        mvc.perform(post("/race/v1/" + run.id() + "/comments")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Bravo\"}"))
                 .andExpect(status().isCreated());
 
-        mvc.perform(get("/api/v1/activities/" + run.id() + "/comments")
+        mvc.perform(get("/race/v1/" + run.id() + "/comments")
                         .header("Authorization", marie.bearer()))
                 .andExpect(jsonPath("$.total").value(1));
         assertThat(redis.hasKey(CacheKey.activityCounters(run.id()))).isTrue();
@@ -166,14 +166,14 @@ class NewCachesIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         String key = CacheKey.feedHead(marie.id());
 
-        mvc.perform(get("/api/v1/feed").header("Authorization", marie.bearer()))
+        mvc.perform(get("/feed/v1").header("Authorization", marie.bearer()))
                 .andExpect(status().isOk());
         assertThat(redis.hasKey(key)).isTrue();
 
         redis.delete(key);
         // Une page à curseur est unique : elle n'a personne d'autre à qui servir, donc rien à
         // mémoriser.
-        mvc.perform(get("/api/v1/feed?cursor=" + Instant.now())
+        mvc.perform(get("/feed/v1?cursor=" + Instant.now())
                 .header("Authorization", marie.bearer())).andExpect(status().isOk());
         assertThat(redis.hasKey(key)).isFalse();
     }
@@ -184,7 +184,7 @@ class NewCachesIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Account paul = fixtures.newAccount();
 
-        mvc.perform(get("/api/v1/feed").header("Authorization", marie.bearer()));
+        mvc.perform(get("/feed/v1").header("Authorization", marie.bearer()));
 
         assertThat(redis.hasKey(CacheKey.feedHead(marie.id()))).isTrue();
         assertThat(redis.hasKey(CacheKey.feedHead(paul.id()))).isFalse();

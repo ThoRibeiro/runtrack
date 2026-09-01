@@ -4,9 +4,11 @@ import com.runtrack.notification.usecases.service.NotificationInbox;
 import com.runtrack.notification.usecases.model.inbox.Notification;
 import com.runtrack.notification.usecases.model.inbox.NotificationId;
 import com.runtrack.notification.infrastructure.dto.NotificationDtos;
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.error.ForbiddenException;
 import com.runtrack.shared.id.UserId;
+import io.swagger.v3.oas.annotations.Operation;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -23,11 +25,12 @@ import org.springframework.web.bind.annotation.RestController;
  * La boîte de réception.
  *
  * <p>Aucun identifiant de destinataire dans les chemins : on ne lit que la sienne, et le seul
- * moyen de la désigner est d'être connecté. Un {@code /users/{id}/notifications} ouvrirait une
+ * moyen de la désigner est d'être connecté. Un {@code /user/v1/{id}/notifications} ouvrirait une
  * question d'autorisation qui n'a aucune raison d'exister.
  */
 @RestController
-@RequestMapping("/api/v1")
+@ApiFolders.Notifications
+@RequestMapping("/notification/v1")
 class NotificationController {
 
     private final NotificationInbox inbox;
@@ -36,7 +39,8 @@ class NotificationController {
         this.inbox = inbox;
     }
 
-    @GetMapping("/notifications")
+    @Operation(summary = "Lister ses notifications")
+    @GetMapping
     NotificationDtos.NotificationPage list(
             @AuthenticationPrincipal Viewer viewer,
             @RequestParam(required = false) Instant cursor,
@@ -50,18 +54,21 @@ class NotificationController {
                 NotificationMapper.nextCursorOf(page));
     }
 
-    @GetMapping("/notifications/unread-count")
+    @Operation(summary = "Compter ses notifications non lues")
+    @GetMapping("/unread-count")
     NotificationDtos.UnreadCountResponse unreadCount(@AuthenticationPrincipal Viewer viewer) {
         return new NotificationDtos.UnreadCountResponse(inbox.unreadCount(requireUser(viewer)));
     }
 
-    @PostMapping("/notifications/{id}/read")
+    @Operation(summary = "Marquer une notification comme lue")
+    @PostMapping("/{id}/read")
     ResponseEntity<Void> markRead(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         inbox.markRead(requireUser(viewer), NotificationId.of(id));
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/notifications/read-all")
+    @Operation(summary = "Marquer toutes ses notifications comme lues")
+    @PostMapping("/read-all")
     NotificationDtos.MarkAllReadResponse markAllRead(@AuthenticationPrincipal Viewer viewer) {
         return new NotificationDtos.MarkAllReadResponse(inbox.markAllRead(requireUser(viewer)));
     }

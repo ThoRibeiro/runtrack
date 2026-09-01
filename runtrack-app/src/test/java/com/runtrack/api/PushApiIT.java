@@ -48,7 +48,7 @@ class PushApiIT extends ApiIntegrationTest {
     }
 
     private void registerDevice(Account owner, String token) throws Exception {
-        mvc.perform(post("/api/v1/users/me/devices")
+        mvc.perform(post("/user/v1/me/devices")
                         .header("Authorization", owner.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"token\":\"%s\",\"platform\":\"ANDROID\"}".formatted(token)))
@@ -57,7 +57,7 @@ class PushApiIT extends ApiIntegrationTest {
     }
 
     private int deviceCountOf(Account owner) throws Exception {
-        var listed = mvc.perform(get("/api/v1/users/me/devices")
+        var listed = mvc.perform(get("/user/v1/me/devices")
                         .header("Authorization", owner.bearer()))
                 .andExpect(status().isOk()).andReturn();
         return json.readTree(listed.getResponse().getContentAsString()).get("items").size();
@@ -71,7 +71,7 @@ class PushApiIT extends ApiIntegrationTest {
         registerDevice(marie, token);
         assertThat(deviceCountOf(marie)).isEqualTo(1);
 
-        mvc.perform(delete("/api/v1/users/me/devices/" + token)
+        mvc.perform(delete("/user/v1/me/devices/" + token)
                 .header("Authorization", marie.bearer())).andExpect(status().isNoContent());
         assertThat(deviceCountOf(marie)).isZero();
     }
@@ -114,7 +114,7 @@ class PushApiIT extends ApiIntegrationTest {
         String token = "token-" + UUID.randomUUID();
         registerDevice(marie, token);
 
-        mvc.perform(delete("/api/v1/users/me/devices/" + token)
+        mvc.perform(delete("/user/v1/me/devices/" + token)
                         .header("Authorization", paul.bearer()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("DEVICE_NOT_FOUND"));
@@ -125,7 +125,7 @@ class PushApiIT extends ApiIntegrationTest {
     void anUnknownPlatformIsARequestError() throws Exception {
         Account marie = fixtures.newAccount();
 
-        mvc.perform(post("/api/v1/users/me/devices")
+        mvc.perform(post("/user/v1/me/devices")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"token\":\"abc\",\"platform\":\"CARRIER_PIGEON\"}"))
@@ -135,7 +135,7 @@ class PushApiIT extends ApiIntegrationTest {
 
     @Test
     void declaringADeviceNeedsAnAccount() throws Exception {
-        mvc.perform(post("/api/v1/users/me/devices")
+        mvc.perform(post("/user/v1/me/devices")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"token\":\"abc\",\"platform\":\"ANDROID\"}"))
                 .andExpect(status().isUnauthorized());
@@ -145,7 +145,7 @@ class PushApiIT extends ApiIntegrationTest {
     void quietHoursAreStoredWithTheirTimeZone() throws Exception {
         Account marie = fixtures.newAccount();
 
-        mvc.perform(patch("/api/v1/users/me/notification-preferences")
+        mvc.perform(patch("/user/v1/me/notification-preferences")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -155,7 +155,7 @@ class PushApiIT extends ApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.quietHours.zone").value("Europe/Paris"));
 
-        mvc.perform(get("/api/v1/users/me/notification-preferences")
+        mvc.perform(get("/user/v1/me/notification-preferences")
                         .header("Authorization", marie.bearer()))
                 .andExpect(jsonPath("$.quietHours.from").value("22:00:00"))
                 .andExpect(jsonPath("$.quietHours.to").value("07:00:00"));
@@ -165,7 +165,7 @@ class PushApiIT extends ApiIntegrationTest {
     @Test
     void omittingQuietHoursClearsThem() throws Exception {
         Account marie = fixtures.newAccount();
-        mvc.perform(patch("/api/v1/users/me/notification-preferences")
+        mvc.perform(patch("/user/v1/me/notification-preferences")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -173,7 +173,7 @@ class PushApiIT extends ApiIntegrationTest {
                                 """))
                 .andExpect(status().isOk());
 
-        mvc.perform(patch("/api/v1/users/me/notification-preferences")
+        mvc.perform(patch("/user/v1/me/notification-preferences")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"muted\":[]}"))
@@ -185,7 +185,7 @@ class PushApiIT extends ApiIntegrationTest {
     void anUnknownTimeZoneIsARequestError() throws Exception {
         Account marie = fixtures.newAccount();
 
-        mvc.perform(patch("/api/v1/users/me/notification-preferences")
+        mvc.perform(patch("/user/v1/me/notification-preferences")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

@@ -32,7 +32,7 @@ class CourseApiIT extends ApiIntegrationTest {
 
     private Account newAccount() throws Exception {
         String handle = "c" + COUNTER.incrementAndGet() + System.nanoTime() % 100_000;
-        MvcResult created = mvc.perform(post("/api/v1/auth/signup")
+        MvcResult created = mvc.perform(post("/auth/v1/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"handle":"%s","email":"%s@example.com","displayName":"Coureur",
@@ -41,7 +41,7 @@ class CourseApiIT extends ApiIntegrationTest {
                 .andExpect(status().isCreated()).andReturn();
         String id = json.readTree(created.getResponse().getContentAsString()).get("userId").asText();
 
-        MvcResult login = mvc.perform(post("/api/v1/auth/login")
+        MvcResult login = mvc.perform(post("/auth/v1/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s@example.com","password":"correcthorsebattery"}
@@ -56,7 +56,7 @@ class CourseApiIT extends ApiIntegrationTest {
     }
 
     private String startRun(Account owner, String visibility) throws Exception {
-        MvcResult started = mvc.perform(post("/api/v1/activities")
+        MvcResult started = mvc.perform(post("/race/v1")
                         .header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -73,17 +73,17 @@ class CourseApiIT extends ApiIntegrationTest {
         Account marie = newAccount();
         String runId = startRun(marie, "PUBLIC");
 
-        mvc.perform(post("/api/v1/activities/" + runId + "/pause").header("Authorization", bearer(marie)))
+        mvc.perform(post("/race/v1/" + runId + "/pause").header("Authorization", bearer(marie)))
                 .andExpect(status().isNoContent());
-        mvc.perform(get("/api/v1/activities/" + runId).header("Authorization", bearer(marie)))
+        mvc.perform(get("/race/v1/" + runId).header("Authorization", bearer(marie)))
                 .andExpect(jsonPath("$.status").value("Paused"));
 
-        mvc.perform(post("/api/v1/activities/" + runId + "/resume").header("Authorization", bearer(marie)))
+        mvc.perform(post("/race/v1/" + runId + "/resume").header("Authorization", bearer(marie)))
                 .andExpect(status().isNoContent());
-        mvc.perform(post("/api/v1/activities/" + runId + "/finish").header("Authorization", bearer(marie)))
+        mvc.perform(post("/race/v1/" + runId + "/finish").header("Authorization", bearer(marie)))
                 .andExpect(status().isNoContent());
 
-        mvc.perform(get("/api/v1/activities/" + runId).header("Authorization", bearer(marie)))
+        mvc.perform(get("/race/v1/" + runId).header("Authorization", bearer(marie)))
                 .andExpect(jsonPath("$.status").value("Finished"))
                 .andExpect(jsonPath("$.endedAt").exists())
                 .andExpect(jsonPath("$.stats.distanceMeters").value(0.0));
@@ -94,7 +94,7 @@ class CourseApiIT extends ApiIntegrationTest {
         Account marie = newAccount();
         String runId = startRun(marie, "PUBLIC");
 
-        mvc.perform(post("/api/v1/activities/" + runId + "/resume").header("Authorization", bearer(marie)))
+        mvc.perform(post("/race/v1/" + runId + "/resume").header("Authorization", bearer(marie)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ACTIVITY_NOT_PAUSED"));
     }
@@ -103,9 +103,9 @@ class CourseApiIT extends ApiIntegrationTest {
     void aFinishedRunRefusesFurtherTransitions() throws Exception {
         Account marie = newAccount();
         String runId = startRun(marie, "PUBLIC");
-        mvc.perform(post("/api/v1/activities/" + runId + "/finish").header("Authorization", bearer(marie)));
+        mvc.perform(post("/race/v1/" + runId + "/finish").header("Authorization", bearer(marie)));
 
-        mvc.perform(post("/api/v1/activities/" + runId + "/finish").header("Authorization", bearer(marie)))
+        mvc.perform(post("/race/v1/" + runId + "/finish").header("Authorization", bearer(marie)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ACTIVITY_ALREADY_ENDED"));
     }
@@ -115,7 +115,7 @@ class CourseApiIT extends ApiIntegrationTest {
         Account marie = newAccount();
         String runId = startRun(marie, "PUBLIC");
 
-        mvc.perform(get("/api/v1/activities/" + runId))
+        mvc.perform(get("/race/v1/" + runId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Sortie du matin"));
     }
@@ -127,10 +127,10 @@ class CourseApiIT extends ApiIntegrationTest {
         Account paul = newAccount();
         String runId = startRun(marie, "PRIVATE");
 
-        mvc.perform(get("/api/v1/activities/" + runId).header("Authorization", bearer(paul)))
+        mvc.perform(get("/race/v1/" + runId).header("Authorization", bearer(paul)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ACTIVITY_NOT_FOUND"));
-        mvc.perform(get("/api/v1/activities/" + runId))
+        mvc.perform(get("/race/v1/" + runId))
                 .andExpect(status().isNotFound());
     }
 
@@ -141,13 +141,13 @@ class CourseApiIT extends ApiIntegrationTest {
         Account paul = newAccount();
         String runId = startRun(marie, "FOLLOWERS");
 
-        mvc.perform(get("/api/v1/activities/" + runId).header("Authorization", bearer(paul)))
+        mvc.perform(get("/race/v1/" + runId).header("Authorization", bearer(paul)))
                 .andExpect(status().isNotFound());
 
-        mvc.perform(post("/api/v1/users/" + marie.id() + "/follow").header("Authorization", bearer(paul)))
+        mvc.perform(post("/user/v1/" + marie.id() + "/follow").header("Authorization", bearer(paul)))
                 .andExpect(status().isOk());
 
-        mvc.perform(get("/api/v1/activities/" + runId).header("Authorization", bearer(paul)))
+        mvc.perform(get("/race/v1/" + runId).header("Authorization", bearer(paul)))
                 .andExpect(status().isOk());
     }
 
@@ -157,13 +157,13 @@ class CourseApiIT extends ApiIntegrationTest {
         Account marie = newAccount();
         Account paul = newAccount();
         String runId = startRun(marie, "PUBLIC");
-        mvc.perform(get("/api/v1/activities/" + runId).header("Authorization", bearer(paul)))
+        mvc.perform(get("/race/v1/" + runId).header("Authorization", bearer(paul)))
                 .andExpect(status().isOk());
 
-        mvc.perform(post("/api/v1/users/" + paul.id() + "/block").header("Authorization", bearer(marie)))
+        mvc.perform(post("/user/v1/" + paul.id() + "/block").header("Authorization", bearer(marie)))
                 .andExpect(status().isNoContent());
 
-        mvc.perform(get("/api/v1/activities/" + runId).header("Authorization", bearer(paul)))
+        mvc.perform(get("/race/v1/" + runId).header("Authorization", bearer(paul)))
                 .andExpect(status().isNotFound());
     }
 
@@ -173,15 +173,15 @@ class CourseApiIT extends ApiIntegrationTest {
         Account paul = newAccount();
         String runId = startRun(marie, "PUBLIC");
 
-        mvc.perform(post("/api/v1/activities/" + runId + "/pause").header("Authorization", bearer(paul)))
+        mvc.perform(post("/race/v1/" + runId + "/pause").header("Authorization", bearer(paul)))
                 .andExpect(status().isNotFound());
-        mvc.perform(delete("/api/v1/activities/" + runId).header("Authorization", bearer(paul)))
+        mvc.perform(delete("/race/v1/" + runId).header("Authorization", bearer(paul)))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void startingNeedsAuthentication() throws Exception {
-        mvc.perform(post("/api/v1/activities")
+        mvc.perform(post("/race/v1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"RUN\",\"title\":\"Sortie\",\"visibility\":\"PUBLIC\"}"))
                 .andExpect(status().isUnauthorized());
@@ -191,7 +191,7 @@ class CourseApiIT extends ApiIntegrationTest {
     void anUnknownActivityTypeIsUnprocessable() throws Exception {
         Account marie = newAccount();
 
-        mvc.perform(post("/api/v1/activities")
+        mvc.perform(post("/race/v1")
                         .header("Authorization", bearer(marie))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"TELEPORT\",\"title\":\"Sortie\",\"visibility\":\"PUBLIC\"}"))
@@ -203,7 +203,7 @@ class CourseApiIT extends ApiIntegrationTest {
     void anEmptyTitleIsUnprocessable() throws Exception {
         Account marie = newAccount();
 
-        mvc.perform(post("/api/v1/activities")
+        mvc.perform(post("/race/v1")
                         .header("Authorization", bearer(marie))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"RUN\",\"title\":\"  \",\"visibility\":\"PUBLIC\"}"))
@@ -216,21 +216,21 @@ class CourseApiIT extends ApiIntegrationTest {
         Account paul = newAccount();
         String runId = startRun(marie, "PUBLIC");
 
-        mvc.perform(patch("/api/v1/activities/" + runId)
+        mvc.perform(patch("/race/v1/" + runId)
                         .header("Authorization", bearer(marie))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"Fractionné\",\"description\":\"30/30\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Fractionné"));
 
-        mvc.perform(put("/api/v1/activities/" + runId + "/visibility")
+        mvc.perform(put("/race/v1/" + runId + "/visibility")
                         .header("Authorization", bearer(marie))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"visibility\":\"PRIVATE\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.visibility").value("PRIVATE"));
 
-        mvc.perform(patch("/api/v1/activities/" + runId)
+        mvc.perform(patch("/race/v1/" + runId)
                         .header("Authorization", bearer(paul))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"Pirate\"}"))
@@ -244,11 +244,11 @@ class CourseApiIT extends ApiIntegrationTest {
         startRun(marie, "PUBLIC");
         startRun(marie, "PRIVATE");
 
-        mvc.perform(get("/api/v1/users/" + marie.id() + "/activities").header("Authorization", bearer(marie)))
+        mvc.perform(get("/user/v1/" + marie.id() + "/races").header("Authorization", bearer(marie)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(2));
 
-        mvc.perform(get("/api/v1/users/" + marie.id() + "/activities").header("Authorization", bearer(paul)))
+        mvc.perform(get("/user/v1/" + marie.id() + "/races").header("Authorization", bearer(paul)))
                 .andExpect(jsonPath("$.items.length()").value(1));
     }
 
@@ -257,9 +257,9 @@ class CourseApiIT extends ApiIntegrationTest {
         Account marie = newAccount();
         Account paul = newAccount();
         startRun(marie, "PUBLIC");
-        mvc.perform(post("/api/v1/users/" + marie.id() + "/follow").header("Authorization", bearer(paul)));
+        mvc.perform(post("/user/v1/" + marie.id() + "/follow").header("Authorization", bearer(paul)));
 
-        mvc.perform(get("/api/v1/activities/live").header("Authorization", bearer(paul)))
+        mvc.perform(get("/race/v1/live").header("Authorization", bearer(paul)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].status").value("Live"));
@@ -270,10 +270,10 @@ class CourseApiIT extends ApiIntegrationTest {
         Account marie = newAccount();
         String runId = startRun(marie, "PUBLIC");
 
-        mvc.perform(delete("/api/v1/activities/" + runId).header("Authorization", bearer(marie)))
+        mvc.perform(delete("/race/v1/" + runId).header("Authorization", bearer(marie)))
                 .andExpect(status().isNoContent());
 
-        mvc.perform(get("/api/v1/activities/" + runId).header("Authorization", bearer(marie)))
+        mvc.perform(get("/race/v1/" + runId).header("Authorization", bearer(marie)))
                 .andExpect(status().isNotFound());
     }
 }

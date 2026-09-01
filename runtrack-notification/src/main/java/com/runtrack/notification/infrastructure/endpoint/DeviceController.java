@@ -6,7 +6,9 @@ import com.runtrack.notification.usecases.service.DeviceRegistry;
 import com.runtrack.notification.usecases.model.push.DevicePlatform;
 import com.runtrack.notification.usecases.model.push.DeviceToken;
 import com.runtrack.notification.infrastructure.dto.NotificationDtos;
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.access.Viewer;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
  * et lui en imposer un second l'obligerait à le mémoriser entre deux lancements.
  */
 @RestController
-@RequestMapping("/api/v1/users/me/devices")
+@ApiFolders.Accounts
+@RequestMapping("/user/v1/me/devices")
 class DeviceController {
 
     private final DeviceRegistry devices;
@@ -36,6 +39,7 @@ class DeviceController {
         this.devices = devices;
     }
 
+    @Operation(summary = "Enregistrer un appareil pour les notifications push")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     NotificationDtos.DeviceResponse register(
@@ -46,12 +50,14 @@ class DeviceController {
                 requireUser(viewer), request.token(), DevicePlatform.valueOf(request.platform())));
     }
 
+    @Operation(summary = "Lister ses appareils enregistrés")
     @GetMapping
     NotificationDtos.DeviceListResponse list(@AuthenticationPrincipal Viewer viewer) {
         return new NotificationDtos.DeviceListResponse(
                 devices.of(requireUser(viewer)).stream().map(DeviceController::toResponse).toList());
     }
 
+    @Operation(summary = "Retirer un appareil")
     @DeleteMapping("/{token}")
     ResponseEntity<Void> forget(@AuthenticationPrincipal Viewer viewer, @PathVariable String token) {
         devices.forget(requireUser(viewer), token);

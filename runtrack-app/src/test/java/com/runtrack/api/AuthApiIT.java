@@ -40,7 +40,7 @@ class AuthApiIT extends ApiIntegrationTest {
     }
 
     private String signUp(String handle) throws Exception {
-        mvc.perform(post("/api/v1/auth/signup")
+        mvc.perform(post("/auth/v1/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(signUpBody(handle, "correcthorsebattery")))
                 .andExpect(status().isCreated())
@@ -49,7 +49,7 @@ class AuthApiIT extends ApiIntegrationTest {
     }
 
     private JsonNode logIn(String handle) throws Exception {
-        MvcResult result = mvc.perform(post("/api/v1/auth/login")
+        MvcResult result = mvc.perform(post("/auth/v1/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s@example.com","password":"correcthorsebattery"}
@@ -65,7 +65,7 @@ class AuthApiIT extends ApiIntegrationTest {
         String handle = signUp(uniqueHandle());
         String accessToken = logIn(handle).get("accessToken").asText();
 
-        mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
+        mvc.perform(get("/user/v1/me").header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.handle").value(handle))
                 .andExpect(jsonPath("$.email").value(handle + "@example.com"))
@@ -75,12 +75,12 @@ class AuthApiIT extends ApiIntegrationTest {
     /** 401 : la ressource demande une identité, et aucune n'a été présentée. */
     @Test
     void readingOwnProfileWithoutATokenIsUnauthorized() throws Exception {
-        mvc.perform(get("/api/v1/users/me")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/user/v1/me")).andExpect(status().isUnauthorized());
     }
 
     @Test
     void anInvalidTokenIsTreatedAsNoTokenAtAll() throws Exception {
-        mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer pas-un-jwt"))
+        mvc.perform(get("/user/v1/me").header("Authorization", "Bearer pas-un-jwt"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -89,7 +89,7 @@ class AuthApiIT extends ApiIntegrationTest {
     void aWrongPasswordIsForbiddenWithAProblemDetail() throws Exception {
         String handle = signUp(uniqueHandle());
 
-        mvc.perform(post("/api/v1/auth/login")
+        mvc.perform(post("/auth/v1/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"%s@example.com","password":"un-mauvais-mot-de-passe"}
@@ -101,7 +101,7 @@ class AuthApiIT extends ApiIntegrationTest {
 
     @Test
     void anUnknownEmailAnswersExactlyLikeAWrongPassword() throws Exception {
-        mvc.perform(post("/api/v1/auth/login")
+        mvc.perform(post("/auth/v1/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"jamais-inscrit@example.com","password":"correcthorsebattery"}
@@ -115,7 +115,7 @@ class AuthApiIT extends ApiIntegrationTest {
     void aDuplicateHandleIsAConflict() throws Exception {
         String handle = signUp(uniqueHandle());
 
-        mvc.perform(post("/api/v1/auth/signup")
+        mvc.perform(post("/auth/v1/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(signUpBody(handle, "correcthorsebattery")))
                 .andExpect(status().isConflict())
@@ -125,7 +125,7 @@ class AuthApiIT extends ApiIntegrationTest {
     /** 422 : la validation Jakarta refuse la requête avant tout traitement. */
     @Test
     void aTooShortPasswordIsUnprocessable() throws Exception {
-        mvc.perform(post("/api/v1/auth/signup")
+        mvc.perform(post("/auth/v1/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(signUpBody(uniqueHandle(), "court")))
                 .andExpect(status().isUnprocessableEntity())
@@ -135,7 +135,7 @@ class AuthApiIT extends ApiIntegrationTest {
 
     @Test
     void aMalformedEmailIsUnprocessable() throws Exception {
-        mvc.perform(post("/api/v1/auth/signup")
+        mvc.perform(post("/auth/v1/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"handle":"%s","email":"pas-une-adresse","displayName":"Marie",
@@ -149,7 +149,7 @@ class AuthApiIT extends ApiIntegrationTest {
         String handle = signUp(uniqueHandle());
         String first = logIn(handle).get("refreshToken").asText();
 
-        MvcResult rotated = mvc.perform(post("/api/v1/auth/refresh")
+        MvcResult rotated = mvc.perform(post("/auth/v1/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"%s\"}".formatted(first)))
                 .andExpect(status().isOk())
@@ -157,14 +157,14 @@ class AuthApiIT extends ApiIntegrationTest {
         String second = json.readTree(rotated.getResponse().getContentAsString())
                 .get("refreshToken").asText();
 
-        mvc.perform(post("/api/v1/auth/refresh")
+        mvc.perform(post("/auth/v1/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"%s\"}".formatted(first)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("REFRESH_TOKEN_REUSED"));
 
         // Le successeur est mort avec la famille : c'est le but de la révocation.
-        mvc.perform(post("/api/v1/auth/refresh")
+        mvc.perform(post("/auth/v1/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"%s\"}".formatted(second)))
                 .andExpect(status().isForbidden());
@@ -175,12 +175,12 @@ class AuthApiIT extends ApiIntegrationTest {
         String handle = signUp(uniqueHandle());
         String refreshToken = logIn(handle).get("refreshToken").asText();
 
-        mvc.perform(post("/api/v1/auth/logout")
+        mvc.perform(post("/auth/v1/logout")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"%s\"}".formatted(refreshToken)))
                 .andExpect(status().isNoContent());
 
-        mvc.perform(post("/api/v1/auth/refresh")
+        mvc.perform(post("/auth/v1/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"%s\"}".formatted(refreshToken)))
                 .andExpect(status().isForbidden());
@@ -189,7 +189,7 @@ class AuthApiIT extends ApiIntegrationTest {
     /** 404 : un lien de confirmation qui n'a jamais été émis. */
     @Test
     void anUnknownVerificationTokenIsNotFound() throws Exception {
-        mvc.perform(get("/api/v1/auth/verify-email").param("token", "jamais-emis"))
+        mvc.perform(get("/auth/v1/verify-email").param("token", "jamais-emis"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("TOKEN_UNKNOWN"));
     }
@@ -197,7 +197,7 @@ class AuthApiIT extends ApiIntegrationTest {
     /** 202 quelle que soit l'issue : l'endpoint ne doit pas énumérer les comptes. */
     @Test
     void forgotPasswordAcceptsEvenAnUnknownAddress() throws Exception {
-        mvc.perform(post("/api/v1/auth/password/forgot")
+        mvc.perform(post("/auth/v1/password/forgot")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"jamais-inscrit@example.com\"}"))
                 .andExpect(status().isAccepted());

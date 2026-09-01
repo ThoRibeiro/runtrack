@@ -9,8 +9,10 @@ import com.runtrack.course.infrastructure.realtime.LiveEventCodec;
 import com.runtrack.course.infrastructure.realtime.LiveKeys;
 import com.runtrack.platform.realtime.LiveChannel;
 import com.runtrack.platform.realtime.PublishedEvent;
+import com.runtrack.platform.openapi.ApiFolders;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.id.ActivityId;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.http.MediaType;
@@ -30,7 +32,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * répond « introuvable » sur ce chemin comme sur les autres.
  */
 @RestController
-@RequestMapping("/api/v1")
+@ApiFolders.Races
+@RequestMapping("/race/v1")
 class LiveStreamController {
 
     private final ActivityQueries queries;
@@ -46,7 +49,8 @@ class LiveStreamController {
         this.channel = channel;
     }
 
-    @GetMapping(path = "/activities/{id}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "Suivre une course en direct (SSE)")
+    @GetMapping(path = "/{id}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     SseEmitter follow(
             @AuthenticationPrincipal Viewer viewer,
             @PathVariable String id,

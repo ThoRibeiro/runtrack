@@ -60,19 +60,19 @@ class NotificationApiIT extends ApiIntegrationTest {
 
     /** Fait suivre {@code follower} → {@code followee} ; un compte public accepte sans demande. */
     private void follow(Account follower, Account followee) throws Exception {
-        mvc.perform(post("/api/v1/users/" + followee.id() + "/follow")
+        mvc.perform(post("/user/v1/" + followee.id() + "/follow")
                 .header("Authorization", follower.bearer())).andExpect(status().isOk());
     }
 
     private JsonNode inboxOf(Account account) throws Exception {
-        MvcResult listed = mvc.perform(get("/api/v1/notifications")
+        MvcResult listed = mvc.perform(get("/notification/v1")
                         .header("Authorization", account.bearer()))
                 .andExpect(status().isOk()).andReturn();
         return json.readTree(listed.getResponse().getContentAsString()).get("items");
     }
 
     private long unreadCountOf(Account account) throws Exception {
-        MvcResult counted = mvc.perform(get("/api/v1/notifications/unread-count")
+        MvcResult counted = mvc.perform(get("/notification/v1/unread-count")
                         .header("Authorization", account.bearer()))
                 .andExpect(status().isOk()).andReturn();
         return json.readTree(counted.getResponse().getContentAsString()).get("unread").asLong();
@@ -175,7 +175,7 @@ class NotificationApiIT extends ApiIntegrationTest {
         Run run = fixtures.startRun(marie);
         awaitNotification(paul, "FRIEND_STARTED_ACTIVITY");
 
-        mvc.perform(post("/api/v1/activities/" + run.id() + "/finish")
+        mvc.perform(post("/race/v1/" + run.id() + "/finish")
                 .header("Authorization", marie.bearer())).andExpect(status().isNoContent());
 
         assertThat(awaitNotification(paul, "FRIEND_FINISHED_ACTIVITY").get("deepLink").asText())
@@ -204,16 +204,16 @@ class NotificationApiIT extends ApiIntegrationTest {
         String id = awaitNotification(paul, "FRIEND_STARTED_ACTIVITY").get("id").asText();
         long unread = unreadCountOf(paul);
 
-        mvc.perform(post("/api/v1/notifications/" + id + "/read")
+        mvc.perform(post("/notification/v1/" + id + "/read")
                 .header("Authorization", paul.bearer())).andExpect(status().isNoContent());
         assertThat(unreadCountOf(paul)).isEqualTo(unread - 1);
 
-        mvc.perform(post("/api/v1/notifications/read-all").header("Authorization", paul.bearer()))
+        mvc.perform(post("/notification/v1/read-all").header("Authorization", paul.bearer()))
                 .andExpect(status().isOk());
         assertThat(unreadCountOf(paul)).isZero();
 
         // Une boîte déjà vide ne compte rien de plus : l'opération est idempotente.
-        mvc.perform(post("/api/v1/notifications/read-all").header("Authorization", paul.bearer()))
+        mvc.perform(post("/notification/v1/read-all").header("Authorization", paul.bearer()))
                 .andExpect(jsonPath("$.marked").value(0));
     }
 
@@ -226,7 +226,7 @@ class NotificationApiIT extends ApiIntegrationTest {
         fixtures.startRun(marie);
         String id = awaitNotification(paul, "FRIEND_STARTED_ACTIVITY").get("id").asText();
 
-        mvc.perform(post("/api/v1/notifications/" + id + "/read")
+        mvc.perform(post("/notification/v1/" + id + "/read")
                         .header("Authorization", lea.bearer()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOTIFICATION_NOT_FOUND"));
@@ -238,10 +238,10 @@ class NotificationApiIT extends ApiIntegrationTest {
         Account paul = fixtures.newAccount();
         follow(paul, marie);
         awaitNotification(paul, "FOLLOW_ACCEPTED");
-        mvc.perform(post("/api/v1/notifications/read-all").header("Authorization", paul.bearer()))
+        mvc.perform(post("/notification/v1/read-all").header("Authorization", paul.bearer()))
                 .andExpect(status().isOk());
 
-        mvc.perform(patch("/api/v1/users/me/notification-preferences")
+        mvc.perform(patch("/user/v1/me/notification-preferences")
                         .header("Authorization", paul.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"muted\":[\"FRIEND_STARTED_ACTIVITY\"]}"))
@@ -259,7 +259,7 @@ class NotificationApiIT extends ApiIntegrationTest {
     void preferencesAnnounceEveryAvailableNature() throws Exception {
         Account marie = fixtures.newAccount();
 
-        mvc.perform(get("/api/v1/users/me/notification-preferences")
+        mvc.perform(get("/user/v1/me/notification-preferences")
                         .header("Authorization", marie.bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.muted").isEmpty())
@@ -270,7 +270,7 @@ class NotificationApiIT extends ApiIntegrationTest {
     void anUnknownNatureIsARequestError() throws Exception {
         Account marie = fixtures.newAccount();
 
-        mvc.perform(patch("/api/v1/users/me/notification-preferences")
+        mvc.perform(patch("/user/v1/me/notification-preferences")
                         .header("Authorization", marie.bearer())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"muted\":[\"PIGEON_ARRIVED\"]}"))
@@ -280,7 +280,7 @@ class NotificationApiIT extends ApiIntegrationTest {
 
     @Test
     void anInboxNeedsAnAccount() throws Exception {
-        mvc.perform(get("/api/v1/notifications")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/notification/v1")).andExpect(status().isUnauthorized());
     }
 
     /**
@@ -320,7 +320,7 @@ class NotificationApiIT extends ApiIntegrationTest {
         follow(paul, marie);
         awaitNotification(paul, "FOLLOW_ACCEPTED");
 
-        MvcResult stream = mvc.perform(get("/api/v1/notifications/stream")
+        MvcResult stream = mvc.perform(get("/notification/v1/stream")
                         .accept(MediaType.TEXT_EVENT_STREAM)
                         .header("Authorization", paul.bearer()))
                 .andReturn();

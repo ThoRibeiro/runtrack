@@ -16,7 +16,7 @@ Corrigé par un composant `SessionRevocation` en `REQUIRES_NEW`. Un composant di
 non une méthode privée : un appel interne ne traverse pas le proxy Spring, et
 `REQUIRES_NEW` sur une méthode privée n'a strictement aucun effet.
 
-### 2. `/api/v1/users/*` en accès public capturait `/users/me`
+### 2. `/user/v1/*` en accès public capturait `/users/me`
 
 L'ordre des motifs de sécurité laissait n'importe qui lire l'adresse e-mail et la
 physiologie d'un compte. La règle authentifiée est désormais **avant** la règle publique.
