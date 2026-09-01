@@ -27,7 +27,16 @@ class CorsConfiguration {
         policy.setMaxAge(Duration.ofHours(1));
 
         var source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", policy);
+        // Toutes les routes, et non `/api/**` : aucune de celles de cette application ne
+        // commence par ce préfixe. Elles sont montées sur `/auth/v1`, `/race/v1`, `/user/v1`,
+        // `/feed/v1`, `/notification/v1`, `/comment/v1`, `/share-link/v1` et `/shared/v1`.
+        //
+        // Tant que le motif est resté sur `/api/**`, la politique ne s'appliquait à rien :
+        // le préflight répondait 200 sans le moindre en-tête `Access-Control-*`, donc tout
+        // navigateur bloquait chaque requête. Curieusement invisible, parce que `curl` ne
+        // fait pas de CORS et que les tests d'intégration passent par MockMvc : seul un vrai
+        // navigateur le montre.
+        source.registerCorsConfiguration("/**", policy);
         return source;
     }
 }
