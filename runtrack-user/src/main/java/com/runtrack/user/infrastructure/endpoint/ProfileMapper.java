@@ -23,7 +23,8 @@ final class ProfileMapper {
                 user.bio().orElse(null),
                 user.accountScope().name(),
                 user.status().name(),
-                user.registeredAt());
+                user.registeredAt(),
+                user.updatedAt());
     }
 
     static ProfileDtos.PublicProfile toPublicProfile(User user) {

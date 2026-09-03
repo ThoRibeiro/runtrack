@@ -40,6 +40,31 @@ class UserRepositoryIT extends PostgresIntegrationTest {
         return new Handle(prefix + System.nanoTime() % 1_000_000);
     }
 
+    /**
+     * La date de modification traverse bien la persistance.
+     *
+     * <p>Le test unitaire de l'agrégat ne peut rien dire ici : {@code save} recopie les champs
+     * sur l'entité déjà gérée par JPA, et un champ oublié dans cette recopie se perd en
+     * silence — l'appel répond 200, la colonne ne bouge pas.
+     */
+    @Test
+    void carriesTheModificationDateThroughPersistence() {
+        Handle handle = uniqueHandle("marie");
+        UserId id = accounts.register(handle, new Email(handle.value() + "@example.com"), "Marie");
+        accounts.verifyEmail(id);
+        User justRegistered = users.findById(id).orElseThrow();
+
+        accounts.changeHandle(id, uniqueHandle("marie2"));
+
+        User reloaded = users.findById(id).orElseThrow();
+        assertThat(reloaded.updatedAt())
+                .as("strictement après : à égalité, la colonne n'a pas été écrite")
+                .isAfter(reloaded.registeredAt());
+        assertThat(reloaded.registeredAt())
+                .as("la date d'inscription ne se remplace jamais")
+                .isEqualTo(justRegistered.registeredAt());
+    }
+
     @Test
     void storesAndReadsBackTheWholeAggregate() {
         Handle handle = uniqueHandle("marie");

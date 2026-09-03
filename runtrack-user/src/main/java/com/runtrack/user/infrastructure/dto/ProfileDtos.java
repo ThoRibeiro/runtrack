@@ -28,7 +28,9 @@ public final class ProfileDtos {
             String bio,
             String accountScope,
             String status,
-            Instant registeredAt) {
+            Instant registeredAt,
+            /** Réservée au propriétaire : elle dit quand *lui* a touché à son compte. */
+            Instant updatedAt) {
     }
 
     /** Ce que voit un tiers : ni adresse e-mail, ni état de compte, ni physiologie. */

@@ -18,6 +18,7 @@ class UserTest {
 
     private static final UserId ID = new UserId(UUID.fromString("018f4c1e-0000-7000-8000-000000000001"));
     private static final Instant REGISTERED = Instant.parse("2026-08-29T08:00:00Z");
+    private static final Instant LATER = Instant.parse("2026-08-30T09:30:00Z");
 
     private static User registered() {
         return User.register(ID, new Handle("marie"), new Email("marie@example.com"), "Marie", REGISTERED);
@@ -25,7 +26,7 @@ class UserTest {
 
     private static User active() {
         User user = registered();
-        user.verifyEmail();
+        user.verifyEmail(LATER);
         return user;
     }
 
@@ -46,7 +47,7 @@ class UserTest {
     void becomesActiveOnceTheEmailIsConfirmed() {
         User user = registered();
 
-        user.verifyEmail();
+        user.verifyEmail(LATER);
 
         assertThat(user.status()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(user.status().canAct()).isTrue();
@@ -57,7 +58,7 @@ class UserTest {
         User user = active();
 
         assertThatExceptionOfType(ConflictException.class)
-                .isThrownBy(user::verifyEmail)
+                .isThrownBy(() -> user.verifyEmail(LATER))
                 .extracting(ConflictException::code)
                 .isEqualTo("EMAIL_ALREADY_VERIFIED");
     }
@@ -94,9 +95,9 @@ class UserTest {
         @Test
         void changingTheAvatarLeavesTheRestAlone() {
             User user = active();
-            user.updateProfile("Marie D.", "Trail et bitume", "https://cdn/ancienne.jpg");
+            user.updateProfile("Marie D.", "Trail et bitume", "https://cdn/ancienne.jpg", LATER);
 
-            user.changeAvatar("https://cdn/nouvelle.jpg");
+            user.changeAvatar("https://cdn/nouvelle.jpg", LATER);
 
             assertThat(user.avatarUrl()).contains("https://cdn/nouvelle.jpg");
             assertThat(user.displayName()).isEqualTo("Marie D.");
@@ -106,9 +107,9 @@ class UserTest {
         @Test
         void anEmptyAvatarRemovesThePicture() {
             User user = active();
-            user.changeAvatar("https://cdn/photo.jpg");
+            user.changeAvatar("https://cdn/photo.jpg", LATER);
 
-            user.changeAvatar("   ");
+            user.changeAvatar("   ", LATER);
 
             assertThat(user.avatarUrl()).isEmpty();
         }
@@ -119,7 +120,7 @@ class UserTest {
             User user = registered();
 
             assertThatExceptionOfType(ConflictException.class)
-                    .isThrownBy(() -> user.changeAvatar("https://cdn/photo.jpg"))
+                    .isThrownBy(() -> user.changeAvatar("https://cdn/photo.jpg", LATER))
                     .satisfies(refused -> assertThat(refused.code()).isEqualTo("ACCOUNT_NOT_ACTIVE"));
         }
 
@@ -127,7 +128,7 @@ class UserTest {
         void updatesTheProfileAndTrimsIt() {
             User user = active();
 
-            user.updateProfile("  Marie D.  ", "  Trail et route  ", "  https://cdn/x.png  ");
+            user.updateProfile("  Marie D.  ", "  Trail et route  ", "  https://cdn/x.png  ", LATER);
 
             assertThat(user.displayName()).isEqualTo("Marie D.");
             assertThat(user.bio()).contains("Trail et route");
@@ -137,9 +138,9 @@ class UserTest {
         @Test
         void clearsOptionalFieldsWhenBlank() {
             User user = active();
-            user.updateProfile("Marie", "Une bio", "https://cdn/x.png");
+            user.updateProfile("Marie", "Une bio", "https://cdn/x.png", LATER);
 
-            user.updateProfile("Marie", "  ", null);
+            user.updateProfile("Marie", "  ", null, LATER);
 
             assertThat(user.bio()).isEmpty();
             assertThat(user.avatarUrl()).isEmpty();
@@ -150,10 +151,10 @@ class UserTest {
             User user = active();
 
             assertThatIllegalArgumentException()
-                    .isThrownBy(() -> user.updateProfile("Marie", "x".repeat(501), null))
+                    .isThrownBy(() -> user.updateProfile("Marie", "x".repeat(501), null, LATER))
                     .withMessageContaining("Biographie");
             assertThatIllegalArgumentException()
-                    .isThrownBy(() -> user.updateProfile("Marie", null, "x".repeat(2_001)))
+                    .isThrownBy(() -> user.updateProfile("Marie", null, "x".repeat(2_001), LATER))
                     .withMessageContaining("avatar");
         }
 
@@ -161,8 +162,8 @@ class UserTest {
         void changesHandleAndVisibility() {
             User user = active();
 
-            user.changeHandle(new Handle("marie.court"));
-            user.changeAccountScope(AudienceScope.FOLLOWERS);
+            user.changeHandle(new Handle("marie.court"), LATER);
+            user.changeAccountScope(AudienceScope.FOLLOWERS, LATER);
 
             assertThat(user.handle()).isEqualTo(new Handle("marie.court"));
             assertThat(user.accountScope()).isEqualTo(AudienceScope.FOLLOWERS);
@@ -174,7 +175,7 @@ class UserTest {
             var physiology = new Physiology(
                     Optional.empty(), Optional.of(BiologicalSex.FEMALE), OptionalDouble.of(58), OptionalDouble.of(165));
 
-            user.recordPhysiology(physiology);
+            user.recordPhysiology(physiology, LATER);
 
             assertThat(user.physiology()).isEqualTo(physiology);
         }
@@ -183,9 +184,9 @@ class UserTest {
         void refusesNullsWhereAValueObjectIsExpected() {
             User user = active();
 
-            assertThatIllegalArgumentException().isThrownBy(() -> user.changeHandle(null));
-            assertThatIllegalArgumentException().isThrownBy(() -> user.changeAccountScope(null));
-            assertThatIllegalArgumentException().isThrownBy(() -> user.recordPhysiology(null));
+            assertThatIllegalArgumentException().isThrownBy(() -> user.changeHandle(null, LATER));
+            assertThatIllegalArgumentException().isThrownBy(() -> user.changeAccountScope(null, LATER));
+            assertThatIllegalArgumentException().isThrownBy(() -> user.recordPhysiology(null, LATER));
         }
 
         /** Un compte non confirmé, suspendu ou supprimé ne se modifie pas. */
@@ -194,15 +195,15 @@ class UserTest {
             User pending = registered();
 
             assertThatExceptionOfType(ConflictException.class)
-                    .isThrownBy(() -> pending.updateProfile("Marie", null, null))
+                    .isThrownBy(() -> pending.updateProfile("Marie", null, null, LATER))
                     .extracting(ConflictException::code)
                     .isEqualTo("ACCOUNT_NOT_ACTIVE");
             assertThatExceptionOfType(ConflictException.class)
-                    .isThrownBy(() -> pending.changeHandle(new Handle("autre")));
+                    .isThrownBy(() -> pending.changeHandle(new Handle("autre"), LATER));
             assertThatExceptionOfType(ConflictException.class)
-                    .isThrownBy(() -> pending.changeAccountScope(AudienceScope.PRIVATE));
+                    .isThrownBy(() -> pending.changeAccountScope(AudienceScope.PRIVATE, LATER));
             assertThatExceptionOfType(ConflictException.class)
-                    .isThrownBy(() -> pending.recordPhysiology(Physiology.UNKNOWN));
+                    .isThrownBy(() -> pending.recordPhysiology(Physiology.UNKNOWN, LATER));
         }
     }
 
@@ -213,7 +214,7 @@ class UserTest {
         void suspendsAnAccount() {
             User user = active();
 
-            user.suspend();
+            user.suspend(LATER);
 
             assertThat(user.status()).isEqualTo(AccountStatus.SUSPENDED);
             assertThat(user.status().canAct()).isFalse();
@@ -222,10 +223,10 @@ class UserTest {
         @Test
         void cannotSuspendADeletedAccount() {
             User user = active();
-            user.anonymize("abc123");
+            user.anonymize("abc123", LATER);
 
             assertThatExceptionOfType(ConflictException.class)
-                    .isThrownBy(user::suspend)
+                    .isThrownBy(() -> user.suspend(LATER))
                     .extracting(ConflictException::code)
                     .isEqualTo("ACCOUNT_DELETED");
         }
@@ -237,12 +238,12 @@ class UserTest {
         @Test
         void wipesEverythingThatIdentifiesThePerson() {
             User user = active();
-            user.updateProfile("Marie Dupont", "Coureuse", "https://cdn/marie.png");
+            user.updateProfile("Marie Dupont", "Coureuse", "https://cdn/marie.png", LATER);
             user.recordPhysiology(new Physiology(
                     Optional.of(java.time.LocalDate.of(1998, 4, 12)), Optional.of(BiologicalSex.FEMALE),
-                    OptionalDouble.of(58), OptionalDouble.of(165)));
+                    OptionalDouble.of(58), OptionalDouble.of(165)), LATER);
 
-            user.anonymize("a1b2c3d4");
+            user.anonymize("a1b2c3d4", LATER);
 
             assertThat(user.handle().value()).isEqualTo("deleted-a1b2c3d4");
             assertThat(user.email().value()).doesNotContain("marie");
@@ -259,7 +260,7 @@ class UserTest {
         void keepsTheTechnicalIdentityIntact() {
             User user = active();
 
-            user.anonymize("a1b2c3d4");
+            user.anonymize("a1b2c3d4", LATER);
 
             assertThat(user.id()).isEqualTo(ID);
             assertThat(user.registeredAt()).isEqualTo(REGISTERED);
@@ -268,10 +269,10 @@ class UserTest {
         @Test
         void refusesToDeleteTwice() {
             User user = active();
-            user.anonymize("a1b2c3d4");
+            user.anonymize("a1b2c3d4", LATER);
 
             assertThatExceptionOfType(ConflictException.class)
-                    .isThrownBy(() -> user.anonymize("e5f6a7b8"))
+                    .isThrownBy(() -> user.anonymize("e5f6a7b8", LATER))
                     .extracting(ConflictException::code)
                     .isEqualTo("ACCOUNT_DELETED");
         }
@@ -280,8 +281,8 @@ class UserTest {
         void refusesToDeleteWithoutASuffix() {
             User user = active();
 
-            assertThatIllegalArgumentException().isThrownBy(() -> user.anonymize(null));
-            assertThatIllegalArgumentException().isThrownBy(() -> user.anonymize("  "));
+            assertThatIllegalArgumentException().isThrownBy(() -> user.anonymize(null, LATER));
+            assertThatIllegalArgumentException().isThrownBy(() -> user.anonymize("  ", LATER));
         }
     }
 
@@ -289,11 +290,68 @@ class UserTest {
     void rehydratesAPersistedStateWithoutReplayingItsHistory() {
         User user = User.rehydrate(ID, new Handle("marie"), new Email("marie@example.com"), "Marie",
                 "https://cdn/x.png", "Coureuse", AudienceScope.FOLLOWERS, AccountStatus.SUSPENDED,
-                Physiology.UNKNOWN, REGISTERED);
+                Physiology.UNKNOWN, REGISTERED, LATER);
 
         assertThat(user.status()).isEqualTo(AccountStatus.SUSPENDED);
         assertThat(user.accountScope()).isEqualTo(AudienceScope.FOLLOWERS);
         assertThat(user.bio()).contains("Coureuse");
         assertThat(user.avatarUrl()).contains("https://cdn/x.png");
+        assertThat(user.registeredAt()).isEqualTo(REGISTERED);
+        assertThat(user.updatedAt()).isEqualTo(LATER);
+    }
+
+    @Nested
+    class ModificationDate {
+
+        /** À l'inscription, rien n'a encore été modifié : la seule date honnête est celle-là. */
+        @Test
+        void startsEqualToTheRegistrationDate() {
+            assertThat(registered().updatedAt()).isEqualTo(REGISTERED);
+        }
+
+        @Test
+        void everyMutationMovesIt() {
+            User user = registered();
+            Instant later = LATER.plusSeconds(3_600);
+
+            user.verifyEmail(later);
+            assertThat(user.updatedAt()).isEqualTo(later);
+
+            user.updateProfile("Marie D.", null, null, later.plusSeconds(1));
+            assertThat(user.updatedAt()).isEqualTo(later.plusSeconds(1));
+
+            user.changeAvatar("https://cdn/y.png", later.plusSeconds(2));
+            assertThat(user.updatedAt()).isEqualTo(later.plusSeconds(2));
+
+            user.changeHandle(new Handle("marie.court"), later.plusSeconds(3));
+            assertThat(user.updatedAt()).isEqualTo(later.plusSeconds(3));
+
+            user.changeAccountScope(AudienceScope.PRIVATE, later.plusSeconds(4));
+            assertThat(user.updatedAt()).isEqualTo(later.plusSeconds(4));
+
+            user.recordPhysiology(Physiology.UNKNOWN, later.plusSeconds(5));
+            assertThat(user.updatedAt()).isEqualTo(later.plusSeconds(5));
+
+            user.anonymize("abcd", later.plusSeconds(6));
+            assertThat(user.updatedAt()).isEqualTo(later.plusSeconds(6));
+        }
+
+        /** La date d'inscription, elle, ne bouge jamais. */
+        @Test
+        void leavesTheRegistrationDateAlone() {
+            User user = active();
+
+            user.changeHandle(new Handle("marie.court"), LATER);
+
+            assertThat(user.registeredAt()).isEqualTo(REGISTERED);
+        }
+
+        @Test
+        void refusesAMutationWithoutItsDate() {
+            User user = active();
+
+            assertThatIllegalArgumentException()
+                    .isThrownBy(() -> user.changeHandle(new Handle("marie.court"), null));
+        }
     }
 }
