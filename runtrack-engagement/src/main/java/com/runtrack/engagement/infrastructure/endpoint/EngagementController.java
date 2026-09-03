@@ -43,13 +43,15 @@ class EngagementController {
     private final Engagement engagement;
     private final RateLimiter rateLimiter;
     private final RateLimitProperties quotas;
+    private final com.runtrack.user.UserApi users;
 
     EngagementController(Engagement engagement, RateLimiter rateLimiter,
-            RateLimitProperties quotas) {
+            RateLimitProperties quotas, com.runtrack.user.UserApi users) {
 
         this.engagement = engagement;
         this.rateLimiter = rateLimiter;
         this.quotas = quotas;
+        this.users = users;
     }
 
     @Operation(summary = "Aimer une course")
@@ -99,8 +101,15 @@ class EngagementController {
 
         Engagement.CommentPage page = engagement.commentsOf(
                 asViewer(viewer), ActivityId.of(id), Optional.ofNullable(cursor), limit);
+        // Les auteurs en une requête, comme le fil : une par ligne serait le N+1
+        // que le §10 interdit.
+        java.util.Map<com.runtrack.shared.id.UserId, com.runtrack.user.UserSummary> authors =
+                users.summaries(page.items().stream()
+                        .map(Comment::authorId)
+                        .collect(java.util.stream.Collectors.toSet()));
+
         return new EngagementDtos.CommentPage(
-                page.items().stream().map(EngagementController::toResponse).toList(),
+                page.items().stream().map(comment -> toResponse(comment, authors)).toList(),
                 page.items().isEmpty() ? null : page.items().getLast().createdAt(),
                 page.total());
     }
@@ -144,11 +153,25 @@ class EngagementController {
         return viewer == null ? Viewer.Anonymous.INSTANCE : viewer;
     }
 
-    private static EngagementDtos.CommentResponse toResponse(Comment comment) {
+    /** Un commentaire qu'on vient d'écrire : son auteur est le lecteur, résolu à l'unité. */
+    private EngagementDtos.CommentResponse toResponse(Comment comment) {
+        return toResponse(comment, users.summaries(java.util.Set.of(comment.authorId())));
+    }
+
+    private static EngagementDtos.CommentResponse toResponse(Comment comment,
+            java.util.Map<com.runtrack.shared.id.UserId, com.runtrack.user.UserSummary> authors) {
+
         return new EngagementDtos.CommentResponse(
                 comment.id().toString(),
                 comment.activityId().toString(),
                 comment.authorId().toString(),
+                java.util.Optional.ofNullable(authors.get(comment.authorId()))
+                        .map(author -> new EngagementDtos.AuthorDto(
+                                author.id().toString(),
+                                author.handle(),
+                                author.displayName(),
+                                author.avatarUrl().orElse(null)))
+                        .orElse(null),
                 comment.parentId().map(CommentId::toString).orElse(null),
                 // Le texte d'un commentaire supprimé ne ressort pas : la ligne subsiste pour ses
                 // réponses, son contenu n'a plus à être lu.

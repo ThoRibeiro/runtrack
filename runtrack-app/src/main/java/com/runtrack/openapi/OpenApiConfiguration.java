@@ -36,6 +36,9 @@ class OpenApiConfiguration {
     private static final String[] ALL_PREFIXES = {
         "/auth/v1/**", "/user/v1", "/user/v1/**", "/race/v1", "/race/v1/**", "/comment/v1/**",
         "/share-link/v1/**", "/notification/v1", "/notification/v1/**", "/feed/v1", "/feed/v1/**",
+        // Les photos de profil : servies sur leur propre préfixe, sans authentification,
+        // et décrites comme le reste — un client doit savoir ce que rend cette adresse.
+        "/media/v1/**",
     };
 
     @Bean
@@ -89,7 +92,9 @@ class OpenApiConfiguration {
      */
     @Bean
     GroupedOpenApi userApi() {
-        return group("2-user", "/user/v1", "/user/v1/**");
+        // La photo de profil se lit sur `/media/v1`, mais elle appartient au compte :
+        // la chercher ailleurs que dans le dossier du profil serait une chasse au trésor.
+        return group("2-user", "/user/v1", "/user/v1/**", "/media/v1/**");
     }
 
     @Bean

@@ -142,7 +142,12 @@ class EngagementFeedApiIT extends ApiIntegrationTest {
         mvc.perform(get("/race/v1/" + run.id() + "/comments")
                         .header("Authorization", paul.bearer()))
                 .andExpect(jsonPath("$.items.length()").value(2))
-                .andExpect(jsonPath("$.items[1].parentId").value(comment));
+                .andExpect(jsonPath("$.items[1].parentId").value(comment))
+                // L'auteur voyage avec le commentaire : sans lui, un client
+                // afficherait « un coureur » faute d'endpoint pour résoudre un
+                // identifiant, ou ferait une requête par ligne — le N+1 du §10.
+                .andExpect(jsonPath("$.items[0].author.displayName").exists())
+                .andExpect(jsonPath("$.items[0].author.handle").exists());
 
         mvc.perform(patch("/comment/v1/" + comment)
                         .header("Authorization", paul.bearer())

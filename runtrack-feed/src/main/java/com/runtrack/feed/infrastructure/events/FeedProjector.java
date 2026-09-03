@@ -135,6 +135,7 @@ class FeedProjector {
                 found.startedAt(),
                 found.endedAt(),
                 0,
-                0));
+                0,
+                found.previewPolyline()));
     }
 }

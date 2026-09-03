@@ -24,17 +24,26 @@ public final class EngagementDtos {
     /**
      * @param body {@code null} pour un commentaire supprimé — la ligne reste, pour que les
      *     réponses qui s'y accrochent gardent leur place, mais son texte ne ressort plus
+     * @param author l'auteur, imbriqué plutôt que réduit à un identifiant : sans lui, un fil
+     *     de commentaires ferait une requête par ligne pour aller chercher un nom — le N+1
+     *     que le §10 interdit, déplacé côté client
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record CommentResponse(
             String id,
             String activityId,
             String authorId,
+            AuthorDto author,
             String parentId,
             String body,
             Instant createdAt,
             Instant editedAt,
             boolean deleted) {
+    }
+
+    /** Ce qu'il faut pour dessiner une ligne de commentaire : un visage et un nom. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record AuthorDto(String id, String handle, String displayName, String avatarUrl) {
     }
 
     /** @param total le nombre de commentaires vivants de la course, supprimés exclus */

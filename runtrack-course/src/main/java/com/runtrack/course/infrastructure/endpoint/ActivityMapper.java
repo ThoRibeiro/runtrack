@@ -19,6 +19,12 @@ public final class ActivityMapper {
     }
 
     public static ActivityDtos.ActivityResponse toResponse(Activity activity, ActivityStats stats) {
+        return toResponse(activity, stats, null);
+    }
+
+    public static ActivityDtos.ActivityResponse toResponse(
+            Activity activity, ActivityStats stats, String previewPolyline) {
+
         return new ActivityDtos.ActivityResponse(
                 activity.id().toString(),
                 activity.ownerId().toString(),
@@ -29,7 +35,8 @@ public final class ActivityMapper {
                 activity.status().getClass().getSimpleName(),
                 activity.startedAt(),
                 activity.status().isTerminal() ? activity.status().since() : null,
-                toStats(stats));
+                toStats(stats),
+                previewPolyline);
     }
 
     public static ActivityDtos.StatsResponse toStats(ActivityStats stats) {

@@ -140,7 +140,10 @@ class ActivityController {
     @GetMapping("/race/v1/{id}")
     ActivityDtos.ActivityResponse byId(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         Activity activity = queries.require(asViewer(viewer), ActivityId.of(id));
-        return ActivityMapper.toResponse(activity, queries.statsOf(activity));
+        return ActivityMapper.toResponse(activity, queries.statsOf(activity),
+                archival.trackOf(activity.id())
+                        .map(track -> track.previewPolyline())
+                        .orElse(null));
     }
 
     @Operation(summary = "Lister les courses d'un coureur", tags = ApiFolders.ACCOUNTS)
@@ -192,8 +195,13 @@ class ActivityController {
     }
 
     private ActivityDtos.ActivityPage toPage(List<Activity> found) {
+        // Une requête pour toute la page : voir `ActivityArchival.previewsOf`.
+        java.util.Map<ActivityId, String> previews =
+                archival.previewsOf(found.stream().map(Activity::id).toList());
+
         List<ActivityDtos.ActivityResponse> items = found.stream()
-                .map(activity -> ActivityMapper.toResponse(activity, queries.statsOf(activity)))
+                .map(activity -> ActivityMapper.toResponse(activity, queries.statsOf(activity),
+                        previews.get(activity.id())))
                 .toList();
         Instant next = found.isEmpty() ? null : found.getLast().startedAt();
         return new ActivityDtos.ActivityPage(items, next);

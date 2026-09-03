@@ -31,6 +31,15 @@ public final class TrackSimplifier {
      */
     public static final double TOLERANCE_METERS = 5;
 
+    /**
+     * La tolérance de la vignette : cinquante mètres.
+     *
+     * <p>À l'échelle d'une carte de fil — cent points de côté pour dix kilomètres — un écart de
+     * cinquante mètres ne représente pas un pixel. Le tracé garde sa forme, et la liste ne
+     * télécharge pas la trace complète de chaque course pour n'en dessiner qu'un timbre.
+     */
+    public static final double PREVIEW_TOLERANCE_METERS = 50;
+
     private TrackSimplifier() {
     }
 

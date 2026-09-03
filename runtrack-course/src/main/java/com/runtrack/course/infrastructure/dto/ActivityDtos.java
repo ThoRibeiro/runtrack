@@ -29,6 +29,11 @@ public final class ActivityDtos {
     public record ChangeVisibilityRequest(@NotBlank String visibility) {
     }
 
+    /**
+     * @param previewPolyline la vignette de la trace, très simplifiée — de quoi dessiner le
+     *     parcours sur une carte de liste sans télécharger la trace entière. Absente tant que
+     *     la course n'est pas historisée, et sur celles gelées avant son introduction.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ActivityResponse(
             String id,
@@ -40,7 +45,8 @@ public final class ActivityDtos {
             String status,
             Instant startedAt,
             Instant endedAt,
-            StatsResponse stats) {
+            StatsResponse stats,
+            String previewPolyline) {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

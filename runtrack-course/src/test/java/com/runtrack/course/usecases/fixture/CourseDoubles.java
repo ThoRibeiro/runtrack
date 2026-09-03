@@ -151,6 +151,27 @@ public final class CourseDoubles {
         }
 
         @Override
+        public Map<ActivityId, List<com.runtrack.shared.measure.GeoPoint>> sample(
+                java.util.Collection<ActivityId> activityIds, int maxPointsPerActivity) {
+
+            Map<ActivityId, List<com.runtrack.shared.measure.GeoPoint>> sampled =
+                    new LinkedHashMap<>();
+            for (ActivityId id : activityIds) {
+                List<TrackPoint> all = findAll(id);
+                if (all.isEmpty()) {
+                    continue;
+                }
+                int step = Math.max(1, all.size() / maxPointsPerActivity);
+                List<com.runtrack.shared.measure.GeoPoint> positions = new java.util.ArrayList<>();
+                for (int index = step - 1; index < all.size(); index += step) {
+                    positions.add(all.get(index).position());
+                }
+                sampled.put(id, positions);
+            }
+            return sampled;
+        }
+
+        @Override
         public void deleteAll(ActivityId activityId) {
             stored.remove(activityId);
         }
@@ -202,6 +223,18 @@ public final class CourseDoubles {
         @Override
         public Optional<ArchivedTrack> find(ActivityId activityId) {
             return Optional.ofNullable(tracks.get(activityId));
+        }
+
+        @Override
+        public Map<ActivityId, String> previewsOf(java.util.Collection<ActivityId> activityIds) {
+            Map<ActivityId, String> previews = new LinkedHashMap<>();
+            for (ActivityId id : activityIds) {
+                ArchivedTrack track = tracks.get(id);
+                if (track != null && track.previewPolyline() != null) {
+                    previews.put(id, track.previewPolyline());
+                }
+            }
+            return previews;
         }
 
         @Override

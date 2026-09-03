@@ -41,6 +41,12 @@ public class ActivityArchival {
 
     private static final Logger LOG = LoggerFactory.getLogger(ActivityArchival.class);
 
+    /**
+     * Soixante positions pour une vignette : à cent points de côté, on ne distingue pas
+     * mieux, et c'est ce qui rend l'échantillon d'une course en cours quasi gratuit.
+     */
+    private static final int PREVIEW_SAMPLE_POINTS = 60;
+
     private final TrackPointRepository points;
     private final ActivityArchive archive;
     private final Clock clock;
@@ -64,10 +70,17 @@ public class ActivityArchival {
         List<TrackPoint> displayed = TrackSimplifier.simplify(track, TrackSimplifier.TOLERANCE_METERS);
         List<GeoPoint> positions = displayed.stream().map(TrackPoint::position).toList();
 
+        // La vignette part de la trace déjà simplifiée : simplifier une seconde fois, plus
+        // grossièrement, coûte quelques centaines de points au lieu de quelques milliers.
+        List<GeoPoint> preview = TrackSimplifier
+                .simplify(displayed, TrackSimplifier.PREVIEW_TOLERANCE_METERS)
+                .stream().map(TrackPoint::position).toList();
+
         archive.save(
                 new ActivityArchive.ArchivedTrack(
                         activity.id(),
                         PolylineEncoder.encode(positions),
+                        PolylineEncoder.encode(preview),
                         displayed.size(),
                         track.size(),
                         positions,
@@ -95,6 +108,32 @@ public class ActivityArchival {
     @Transactional(readOnly = true)
     public Optional<ActivityArchive.ArchivedTrack> trackOf(ActivityId activityId) {
         return archive.find(activityId);
+    }
+
+    /**
+     * Les vignettes de trace d'une liste de courses, en une requête.
+     *
+     * <p>Une carte de fil dessine le parcours ; aller chercher la trace course par course
+     * ferait vingt requêtes pour une page, ce que le §10 appelle par son nom : N+1.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<ActivityId, String> previewsOf(java.util.Collection<ActivityId> ids) {
+        java.util.Map<ActivityId, String> previews =
+                new java.util.LinkedHashMap<>(archive.previewsOf(ids));
+
+        // Ce qui n'est pas historisé est soit une course qui court encore, soit une
+        // course sans trace. Pour la première, la vignette se prend sur le vif : un
+        // échantillon de sa trace en cours, sinon sa carte reste un cadre vide tant
+        // qu'elle n'est pas terminée.
+        List<ActivityId> running = ids.stream().filter(id -> !previews.containsKey(id)).toList();
+        if (!running.isEmpty()) {
+            points.sample(running, PREVIEW_SAMPLE_POINTS).forEach((id, positions) -> {
+                if (positions.size() >= 2) {
+                    previews.put(id, PolylineEncoder.encode(positions));
+                }
+            });
+        }
+        return java.util.Map.copyOf(previews);
     }
 
     @Transactional(readOnly = true)
