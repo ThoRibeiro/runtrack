@@ -113,10 +113,24 @@ final class SseSubscriber {
         } catch (IOException | RuntimeException disconnected) {
             // Le client est parti — onglet fermé, réseau coupé, proxy qui tranche. C'est le
             // cours normal des choses en SSE, pas un incident.
-            LOG.debug("Abonné déconnecté pendant l'envoi", disconnected);
+            //
+            // Le message seul en DEBUG, la trace en TRACE : une pile de quarante lignes à chaque
+            // fermeture d'onglet noie le journal de développement, où `com.runtrack` est en DEBUG.
+            // Qui a besoin de la trace la demande, elle n'est pas perdue.
+            LOG.debug("Abonné déconnecté pendant l'envoi : {}", rootCauseOf(disconnected));
+            LOG.trace("Détail de la déconnexion", disconnected);
             closed.set(true);
             emitter.completeWithError(disconnected);
         }
+    }
+
+    /** « Broken pipe » plutôt que trois « caused by » emboîtés qui disent la même chose. */
+    private static String rootCauseOf(Throwable failure) {
+        Throwable cause = failure;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        return cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
     }
 
     private static SseEmitter.SseEventBuilder asSseEvent(PublishedEvent event) {

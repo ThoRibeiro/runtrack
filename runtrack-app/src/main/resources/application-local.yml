@@ -6,8 +6,20 @@ spring:
   jpa:
     # Utile pour comprendre une requête, insupportable en production.
     show-sql: false
+  mail:
+    # Mailpit, monté par docker-compose : il accepte tout et n'expédie rien. Les messages se
+    # lisent sur http://localhost:8025. Sans authentification, donc rien à mettre ici.
+    host: localhost
+    port: 1025
 
 runtrack:
+  mail:
+    # Un vrai envoi, vers un serveur qui n'expédie pas : le parcours de confirmation et celui
+    # du mot de passe oublié se vérifient en entier. `logging` reste là pour travailler sans
+    # docker — le lien sort alors dans la console.
+    provider: smtp
+    # Celle du *front*, pas de l'API : le lien ouvre un écran, qui appelle l'API ensuite.
+    base-url: http://localhost:8081
   push:
     # L'envoyeur qui écrit ce qu'il aurait envoyé : développer les notifications sans compte
     # Firebase est une exigence explicite du §7.

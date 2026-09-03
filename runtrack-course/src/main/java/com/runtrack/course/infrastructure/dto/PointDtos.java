@@ -25,7 +25,7 @@ public final class PointDtos {
     }
 
     public record IngestPointsRequest(
-            @NotEmpty @Size(max = MAX_BATCH_SIZE) @Valid List<PointDto> points) {
+            @NotEmpty @Size(max = MAX_BATCH_SIZE) List<@Valid PointDto> points) {
     }
 
     /**
