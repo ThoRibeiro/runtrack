@@ -33,6 +33,12 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
+    <!-- Les courriels de confirmation d'adresse et de mot de passe oublié. Le bean SMTP n'est
+         créé que si `runtrack.mail.provider` vaut `smtp` : sans cela on journalise le lien. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
     <!-- En Boot 4 les auto-configurations sont éclatées : flyway-core seul n'active plus
          la migration au démarrage, c'est spring-boot-flyway qui la porte. -->
     <dependency>
