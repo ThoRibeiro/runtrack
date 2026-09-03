@@ -90,6 +90,11 @@ public class SecurityConfiguration {
                         // la physiologie du compte à n'importe qui. L'ordre est la règle.
                         .requestMatchers("/user/v1/me", "/user/v1/me/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/user/v1/*").permitAll()
+                        // Une photo de profil se charge par une balise image, qui ne porte
+                        // aucun en-tête : la protéger reviendrait à ne jamais l'afficher.
+                        // L'identifiant est un UUID aléatoire — il ne se devine pas, et ne
+                        // dit rien de son propriétaire.
+                        .requestMatchers(HttpMethod.GET, "/media/v1/avatars/*").permitAll()
                         // Même piège d'ordre : « /race/v1/live » est un chemin concret que
                         // le joker ci-dessous capturerait, alors qu'il exige une identité.
                         .requestMatchers(HttpMethod.GET, "/race/v1/live").authenticated()

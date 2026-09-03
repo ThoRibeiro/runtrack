@@ -10,6 +10,7 @@ import com.runtrack.shared.id.UserId;
 import com.runtrack.user.event.UserDeleted;
 import com.runtrack.user.event.UserProfileUpdated;
 import com.runtrack.user.event.UserRegistered;
+import com.runtrack.user.usecases.fixture.InMemoryAvatarStore;
 import com.runtrack.user.usecases.fixture.InMemoryUserRepository;
 import com.runtrack.user.usecases.model.profile.AccountStatus;
 import com.runtrack.user.usecases.model.profile.Email;
@@ -35,16 +36,18 @@ class UserAccountsTest {
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
 
     private InMemoryUserRepository users;
+    private InMemoryAvatarStore avatars;
     private List<Object> published;
     private UserAccounts accounts;
 
     @BeforeEach
     void setUp() {
         users = new InMemoryUserRepository();
+        avatars = new InMemoryAvatarStore();
         published = new ArrayList<>();
         ApplicationEventPublisher publisher = published::add;
         RandomGenerator random = new java.util.Random(42);
-        accounts = new UserAccounts(users, publisher, CLOCK, random);
+        accounts = new UserAccounts(users, avatars, publisher, CLOCK, random);
     }
 
     private UserId registerMarie() {
@@ -223,6 +226,61 @@ class UserAccountsTest {
 
         assertThat(accounts.search("  ")).isEmpty();
         assertThat(accounts.search(null)).isEmpty();
+    }
+
+    @Test
+    void storesAnUploadedPhotoAndPointsTheProfileAtIt() {
+        UserId id = registerActiveMarie();
+
+        String address = accounts.uploadAvatar(id, "image/jpeg", new byte[] {1, 2, 3},
+                imageId -> "https://runtrack.test/media/v1/avatars/" + imageId);
+
+        assertThat(address).startsWith("https://runtrack.test/media/v1/avatars/");
+        assertThat(accounts.byId(id).avatarUrl()).contains(address);
+        assertThat(avatars.size()).isEqualTo(1);
+    }
+
+    @Test
+    void aSecondPhotoReplacesTheFirstRatherThanPilingUp() {
+        UserId id = registerActiveMarie();
+        accounts.uploadAvatar(id, "image/png", new byte[] {1}, imageId -> imageId);
+
+        accounts.uploadAvatar(id, "image/png", new byte[] {2}, imageId -> imageId);
+
+        // Une image par compte : sans cela, chaque essai de photo laisse la
+        // précédente en base, sans plus rien pour la référencer.
+        assertThat(avatars.size()).isEqualTo(1);
+    }
+
+    @Test
+    void refusesWhatIsNotAnImageTheClientsCanShow() {
+        UserId id = registerActiveMarie();
+
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> accounts.uploadAvatar(id, "application/pdf", new byte[] {1}, imageId -> imageId));
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> accounts.uploadAvatar(id, "image/png", new byte[0], imageId -> imageId));
+        assertThat(avatars.size()).isZero();
+    }
+
+    @Test
+    void refusesAPhotoTooLargeToBeAThumbnail() {
+        UserId id = registerActiveMarie();
+        byte[] tooBig = new byte[2 * 1024 * 1024 + 1];
+
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> accounts.uploadAvatar(id, "image/jpeg", tooBig, imageId -> imageId));
+    }
+
+    @Test
+    void deletingAnAccountTakesItsPhotoWithIt() {
+        UserId id = registerActiveMarie();
+        accounts.uploadAvatar(id, "image/jpeg", new byte[] {1}, imageId -> imageId);
+
+        accounts.delete(id);
+
+        // Une photo qui survit à son propriétaire est une donnée personnelle orpheline.
+        assertThat(avatars.size()).isZero();
     }
 
     @Test

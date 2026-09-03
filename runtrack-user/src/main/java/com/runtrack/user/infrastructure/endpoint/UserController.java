@@ -10,18 +10,24 @@ import com.runtrack.user.usecases.model.profile.Handle;
 import com.runtrack.user.infrastructure.dto.ProfileDtos;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.util.List;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * Les points d'entrée HTTP du profil.
@@ -77,6 +83,33 @@ class UserController {
 
         UserId id = requireUser(viewer);
         accounts.changeAvatar(id, request.avatarUrl());
+        return ProfileMapper.toMyProfile(accounts.byId(id));
+    }
+
+    @Operation(summary = "Téléverser une photo de profil")
+    @PostMapping(value = "/me/avatar/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ProfileDtos.MyProfile uploadAvatar(
+            @AuthenticationPrincipal Viewer viewer,
+            @RequestPart("file") MultipartFile file) {
+
+        UserId id = requireUser(viewer);
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException unreadable) {
+            // Un flux coupé en cours de téléversement : c'est la requête qui est en
+            // cause, pas le serveur — un 500 ferait chercher au mauvais endroit.
+            throw new IllegalArgumentException("Cette image n'a pas pu être lue", unreadable);
+        }
+
+        // L'adresse se fabrique ici : le domaine sait qu'une photo en a une, il ne sait pas
+        // sur quel hôte ce serveur répond. `fromCurrentContextPath` suit les en-têtes
+        // `X-Forwarded-*` derrière un proxy, donc l'adresse reste juste en production.
+        accounts.uploadAvatar(id, file.getContentType(), bytes,
+                imageId -> ServletUriComponentsBuilder.fromCurrentContextPath()
+                        .path("/media/v1/avatars/")
+                        .path(imageId)
+                        .toUriString());
         return ProfileMapper.toMyProfile(accounts.byId(id));
     }
 
