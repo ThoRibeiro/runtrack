@@ -7,18 +7,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.runtrack.api.CourseFixtures.Account;
 import com.runtrack.api.CourseFixtures.Run;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -31,8 +27,10 @@ import tools.jackson.databind.ObjectMapper;
  */
 class LiveStreamApiIT extends ApiIntegrationTest {
 
-    private static final Duration PATIENCE = Duration.ofSeconds(10);
     private static final Pattern EVENT_ID = Pattern.compile("id:(\\S+)");
+
+    @LocalServerPort
+    private int port;
 
     @Autowired
     private MockMvc mvc;
@@ -47,41 +45,9 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         fixtures = new CourseFixtures(mvc, json);
     }
 
-    private MvcResult openStream(Account viewer, Run run, String lastEventId) throws Exception {
-        MockHttpServletRequestBuilder request = get("/race/v1/" + run.id() + "/stream")
-                .accept(MediaType.TEXT_EVENT_STREAM);
-        if (viewer != null) {
-            request = request.header("Authorization", viewer.bearer());
-        }
-        if (lastEventId != null) {
-            request = request.header("Last-Event-ID", lastEventId);
-        }
-        return mvc.perform(request).andReturn();
-    }
-
-    /**
-     * Attend que le flux contienne ce qu'on cherche.
-     *
-     * <p>Une attente fixe serait soit trop courte — le relais passe par Dragonfly et son
-     * {@code XREAD} — soit inutilement lente. On interroge le tampon de réponse, qui se remplit
-     * au fur et à mesure des écritures de l'émetteur.
-     */
-    private static String awaitStream(MvcResult stream, Predicate<String> until) throws Exception {
-        Instant deadline = Instant.now().plus(PATIENCE);
-        String content = "";
-        while (Instant.now().isBefore(deadline)) {
-            content = stream.getResponse().getContentAsString();
-            if (until.test(content)) {
-                return content;
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Flux incomplet après " + PATIENCE + " :\n" + content);
-    }
-
-    /** Referme la connexion : sans cela, chaque test laisserait un spectateur derrière lui. */
-    private static void close(MvcResult stream) {
-        stream.getRequest().getAsyncContext().complete();
+    private SseStream openStream(Account viewer, Run run, String lastEventId) throws Exception {
+        return SseStream.open(port, "/race/v1/" + run.id() + "/stream",
+                viewer == null ? null : viewer.bearer(), lastEventId);
     }
 
     private static int countOf(String stream, String event) {
@@ -103,15 +69,15 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         Run run = fixtures.startRun(marie);
         fixtures.ingest(marie, run, 1, 3);
 
-        MvcResult stream = openStream(marie, run, null);
-        String received = awaitStream(stream, content -> countOf(content, "position") >= 3);
+        SseStream stream = openStream(marie, run, null);
+        String received = stream.await(content -> countOf(content, "position") >= 3);
 
         assertThat(received).contains("event:status").contains("event:stats");
         assertThat(received).contains("\"status\":\"Live\"");
         assertThat(countOf(received, "position")).isEqualTo(3);
         // L'instantané n'est pas une entrée du journal : rien à reprendre depuis là.
         assertThat(lastEventIdOf(received)).isNull();
-        close(stream);
+        stream.close();
     }
 
     @Test
@@ -119,15 +85,15 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        MvcResult stream = openStream(marie, run, null);
-        awaitStream(stream, content -> content.contains("event:stats"));
+        SseStream stream = openStream(marie, run, null);
+        stream.await(content -> content.contains("event:stats"));
 
         fixtures.ingest(marie, run, 1, 3);
-        String received = awaitStream(stream, content -> countOf(content, "position") >= 3);
+        String received = stream.await(content -> countOf(content, "position") >= 3);
 
         assertThat(received).contains("\"sequenceNumber\":3");
         assertThat(lastEventIdOf(received)).isNotNull();
-        close(stream);
+        stream.close();
     }
 
     @Test
@@ -135,15 +101,15 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        MvcResult stream = openStream(marie, run, null);
-        awaitStream(stream, content -> content.contains("event:stats"));
+        SseStream stream = openStream(marie, run, null);
+        stream.await(content -> content.contains("event:stats"));
 
         mvc.perform(post("/race/v1/" + run.id() + "/pause")
                 .header("Authorization", marie.bearer())).andExpect(status().isNoContent());
 
-        assertThat(awaitStream(stream, content -> content.contains("\"status\":\"Paused\"")))
+        assertThat(stream.await(content -> content.contains("\"status\":\"Paused\"")))
                 .contains("event:status");
-        close(stream);
+        stream.close();
     }
 
     /** Sans battement, un proxy referme une connexion restée silencieuse. */
@@ -152,11 +118,11 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        MvcResult stream = openStream(marie, run, null);
+        SseStream stream = openStream(marie, run, null);
 
-        assertThat(awaitStream(stream, content -> content.contains("event:heartbeat")))
+        assertThat(stream.await(content -> content.contains("event:heartbeat")))
                 .contains("event:heartbeat");
-        close(stream);
+        stream.close();
     }
 
     /**
@@ -168,22 +134,22 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        MvcResult first = openStream(marie, run, null);
-        awaitStream(first, content -> content.contains("event:stats"));
+        SseStream first = openStream(marie, run, null);
+        first.await(content -> content.contains("event:stats"));
         fixtures.ingest(marie, run, 1, 3);
-        String seen = awaitStream(first, content -> countOf(content, "position") >= 3);
+        String seen = first.await(content -> countOf(content, "position") >= 3);
         String lastEventId = lastEventIdOf(seen);
-        close(first);
+        first.close();
 
         fixtures.ingest(marie, run, 4, 6);
 
-        MvcResult resumed = openStream(marie, run, lastEventId);
-        String replayed = awaitStream(resumed, content -> content.contains("\"sequenceNumber\":6"));
+        SseStream resumed = openStream(marie, run, lastEventId);
+        String replayed = resumed.await(content -> content.contains("\"sequenceNumber\":6"));
 
         // Ni instantané ni redite : seulement la suite.
         assertThat(replayed).doesNotContain("\"sequenceNumber\":1");
         assertThat(replayed).contains("\"sequenceNumber\":4");
-        close(resumed);
+        resumed.close();
     }
 
     /** Un identifiant que le journal ne connaît plus : on repart d'un instantané, pas d'un trou. */
@@ -193,11 +159,11 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         Run run = fixtures.startRun(marie);
         fixtures.ingest(marie, run, 1, 3);
 
-        MvcResult stream = openStream(marie, run, "1-0");
-        String received = awaitStream(stream, content -> countOf(content, "position") >= 3);
+        SseStream stream = openStream(marie, run, "1-0");
+        String received = stream.await(content -> countOf(content, "position") >= 3);
 
         assertThat(received).contains("event:status").contains("event:stats");
-        close(stream);
+        stream.close();
     }
 
     @Test
@@ -208,16 +174,15 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         mvc.perform(post("/race/v1/" + run.id() + "/finish")
                 .header("Authorization", marie.bearer())).andExpect(status().isNoContent());
 
-        MvcResult stream = openStream(marie, run, null);
-        String received = awaitStream(stream, content -> content.contains("event:stats"));
+        SseStream stream = openStream(marie, run, null);
+        String received = stream.await(content -> content.contains("event:stats"));
 
         assertThat(received).contains("\"status\":\"Finished\"");
         assertThat(countOf(received, "position")).isEqualTo(3);
 
-        // Plus rien ne viendra : la connexion est refermée, et le battement de cœur — qui bat
-        // toutes les 300 ms en test — ne l'atteint plus.
-        Thread.sleep(1_000);
-        assertThat(stream.getResponse().getContentAsString()).doesNotContain("event:heartbeat");
+        // Plus rien ne viendra : le serveur raccroche de lui-même, et le battement de cœur —
+        // qui bat toutes les 300 ms en test — ne l'atteint plus.
+        assertThat(stream.awaitEnd()).doesNotContain("event:heartbeat");
     }
 
     @Test
@@ -225,11 +190,11 @@ class LiveStreamApiIT extends ApiIntegrationTest {
         Account marie = fixtures.newAccount();
         Run run = fixtures.startRun(marie);
 
-        MvcResult stream = openStream(null, run, null);
+        SseStream stream = openStream(null, run, null);
 
-        assertThat(awaitStream(stream, content -> content.contains("event:stats")))
+        assertThat(stream.await(content -> content.contains("event:stats")))
                 .contains("event:status");
-        close(stream);
+        stream.close();
     }
 
     /** Le direct passe par la même politique d'accès : une course privée reste introuvable. */

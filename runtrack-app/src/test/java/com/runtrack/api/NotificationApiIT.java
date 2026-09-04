@@ -15,6 +15,7 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
 import com.runtrack.platform.events.EventPublications;
 import com.runtrack.platform.events.EventPublicationsEndpoint;
@@ -35,6 +36,10 @@ import tools.jackson.databind.ObjectMapper;
 class NotificationApiIT extends ApiIntegrationTest {
 
     private static final Duration PATIENCE = Duration.ofSeconds(15);
+
+    /** Le flux SSE se lit sur une vraie connexion : voir {@link SseStream}. */
+    @LocalServerPort
+    private int port;
 
     @Autowired
     private MockMvc mvc;
@@ -320,35 +325,17 @@ class NotificationApiIT extends ApiIntegrationTest {
         follow(paul, marie);
         awaitNotification(paul, "FOLLOW_ACCEPTED");
 
-        MvcResult stream = mvc.perform(get("/notification/v1/stream")
-                        .accept(MediaType.TEXT_EVENT_STREAM)
-                        .header("Authorization", paul.bearer()))
-                .andReturn();
+        SseStream stream = SseStream.open(port, "/notification/v1/stream", paul.bearer(), null);
 
         // L'instantané : ce que Paul n'a pas encore lu, dès la connexion.
-        String snapshot = awaitStream(stream, content -> content.contains("FOLLOW_ACCEPTED"));
+        String snapshot = stream.await(content -> content.contains("FOLLOW_ACCEPTED"));
         assertThat(snapshot).contains("event:notification");
 
         fixtures.startRun(marie);
 
-        assertThat(awaitStream(stream, content -> content.contains("FRIEND_STARTED_ACTIVITY")))
+        assertThat(stream.await(content -> content.contains("FRIEND_STARTED_ACTIVITY")))
                 .contains("event:notification");
-        stream.getRequest().getAsyncContext().complete();
-    }
-
-    private static String awaitStream(MvcResult stream, java.util.function.Predicate<String> until)
-            throws Exception {
-
-        Instant deadline = Instant.now().plus(PATIENCE);
-        String content = "";
-        while (Instant.now().isBefore(deadline)) {
-            content = stream.getResponse().getContentAsString();
-            if (until.test(content)) {
-                return content;
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("Flux incomplet après " + PATIENCE + " :\n" + content);
+        stream.close();
     }
 
     /**
