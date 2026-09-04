@@ -15,7 +15,7 @@ _Others_
 * `c.r.p.cache.CacheProperties` (in platform)
 * `c.r.u.UserApi` (in user)
 |Events listened to
-|* `c.r.s.event.FollowAccepted` 
+|* `c.r.s.event.UserBlocked` 
+* `c.r.s.event.FollowAccepted` 
 * `c.r.s.event.FollowDropped` 
-* `c.r.s.event.UserBlocked` 
 |===

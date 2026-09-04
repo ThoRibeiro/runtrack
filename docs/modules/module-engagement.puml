@@ -26,11 +26,11 @@ System_Boundary("RunTrackApplication_boundary", "RunTrackApplication", $tags="")
 
 }
 
+Rel(RunTrackApplication.RunTrackApplication.user, RunTrackApplication.RunTrackApplication.shared, "depends on", $techn="", $tags="", $link="")
+Rel(RunTrackApplication.RunTrackApplication.user, RunTrackApplication.RunTrackApplication.platform, "uses", $techn="", $tags="", $link="")
 Rel(RunTrackApplication.RunTrackApplication.course, RunTrackApplication.RunTrackApplication.shared, "depends on", $techn="", $tags="", $link="")
 Rel(RunTrackApplication.RunTrackApplication.course, RunTrackApplication.RunTrackApplication.user, "uses", $techn="", $tags="", $link="")
 Rel(RunTrackApplication.RunTrackApplication.course, RunTrackApplication.RunTrackApplication.platform, "uses", $techn="", $tags="", $link="")
-Rel(RunTrackApplication.RunTrackApplication.user, RunTrackApplication.RunTrackApplication.shared, "depends on", $techn="", $tags="", $link="")
-Rel(RunTrackApplication.RunTrackApplication.user, RunTrackApplication.RunTrackApplication.platform, "uses", $techn="", $tags="", $link="")
 Rel(RunTrackApplication.RunTrackApplication.engagement, RunTrackApplication.RunTrackApplication.shared, "depends on", $techn="", $tags="", $link="")
 Rel(RunTrackApplication.RunTrackApplication.engagement, RunTrackApplication.RunTrackApplication.platform, "uses", $techn="", $tags="", $link="")
 Rel(RunTrackApplication.RunTrackApplication.engagement, RunTrackApplication.RunTrackApplication.user, "uses", $techn="", $tags="", $link="")

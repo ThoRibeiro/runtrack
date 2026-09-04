@@ -9,11 +9,11 @@
 * `c.r.s.SocialApi` (in social)
 * `c.r.u.UserApi` (in user)
 |Events listened to
-|* `c.r.c.event.ActivityDeleted` (async) 
+|* `c.r.c.event.ActivityDiscarded` (async) 
 * `c.r.c.event.ActivityStarted` (async) 
-* `c.r.c.event.ActivityDiscarded` (async) 
 * `c.r.c.event.ActivityVisibilityChanged` (async) 
 * `c.r.c.event.ActivityFinished` (async) 
+* `c.r.c.event.ActivityDeleted` (async) 
 * `c.r.e.event.ActivityCommented` (async) 
 * `c.r.c.event.ActivityDeleted` (async) 
 * `c.r.c.event.ActivityDiscarded` (async) 
