@@ -19,6 +19,6 @@ _Event listeners_
 * `c.r.p.ratelimit.RateLimiter` (in platform)
 * `c.r.p.ratelimit.RateLimitProperties` (in platform)
 |Events listened to
-|* `c.r.c.event.ActivityDiscarded` 
-* `c.r.c.event.ActivityFinished` 
+|* `c.r.c.event.ActivityFinished` 
+* `c.r.c.event.ActivityDiscarded` 
 |===
