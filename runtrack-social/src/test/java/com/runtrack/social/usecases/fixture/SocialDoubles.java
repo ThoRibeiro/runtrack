@@ -6,6 +6,7 @@ import com.runtrack.social.usecases.port.BlockRepository;
 import com.runtrack.social.usecases.port.FollowRepository;
 import com.runtrack.social.usecases.model.graph.Block;
 import com.runtrack.social.usecases.model.graph.Follow;
+import com.runtrack.user.FederatedProfile;
 import com.runtrack.user.NewUser;
 import com.runtrack.user.RunnerMass;
 import com.runtrack.user.UserApi;
@@ -143,6 +144,11 @@ public final class SocialDoubles {
         @Override
         public boolean exists(UserId id) {
             return scopes.containsKey(id);
+        }
+
+        @Override
+        public boolean ensureProfile(UserId id, FederatedProfile profile) {
+            throw new UnsupportedOperationException("Hors du périmètre de ce double");
         }
 
         @Override

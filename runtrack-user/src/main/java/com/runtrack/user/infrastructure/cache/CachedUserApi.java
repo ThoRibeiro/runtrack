@@ -5,6 +5,7 @@ import com.runtrack.platform.cache.CacheKey;
 import com.runtrack.platform.cache.CacheProperties;
 import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.shared.id.UserId;
+import com.runtrack.user.FederatedProfile;
 import com.runtrack.user.NewUser;
 import com.runtrack.user.RunnerMass;
 import com.runtrack.user.UserApi;
@@ -48,6 +49,16 @@ class CachedUserApi implements UserApi {
         this.delegate = delegate;
         this.cache = cache;
         this.properties = properties;
+    }
+
+    /**
+     * Une écriture : elle traverse. Le profil créé est publié par {@code UserRegistered}, et
+     * c'est cet événement qui évince — un « profil absent » mis en cache juste avant survivrait
+     * sinon jusqu'à la fin de son délai.
+     */
+    @Override
+    public boolean ensureProfile(UserId id, FederatedProfile profile) {
+        return delegate.ensureProfile(id, profile);
     }
 
     @Override

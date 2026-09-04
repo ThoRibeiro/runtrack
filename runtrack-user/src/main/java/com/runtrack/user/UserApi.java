@@ -18,6 +18,18 @@ public interface UserApi {
      */
     UserId register(NewUser newUser);
 
+    /**
+     * Ouvre le profil d'une identité fédérée, si elle n'en a pas encore.
+     *
+     * <p>C'est le pendant de {@link #register(NewUser)} quand c'est un fournisseur OIDC qui
+     * tient les identités : l'identifiant n'est plus tiré ici, il <b>est</b> le {@code sub} du
+     * jeton. Deux appels de suite ne créent qu'un profil — la méthode est appelée à chaque
+     * connexion, elle doit être sans effet quand il n'y a rien à faire.
+     *
+     * @return {@code true} si un profil vient d'être créé, {@code false} s'il existait déjà
+     */
+    boolean ensureProfile(UserId id, FederatedProfile profile);
+
     /** Fait passer le compte de {@code PENDING_VERIFICATION} à {@code ACTIVE}. */
     void confirmEmail(UserId id);
 

@@ -4,6 +4,7 @@ import com.runtrack.platform.cache.CacheGateway;
 import com.runtrack.shared.id.UserId;
 import com.runtrack.user.event.UserDeleted;
 import com.runtrack.user.event.UserProfileUpdated;
+import com.runtrack.user.event.UserRegistered;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -22,6 +23,17 @@ class UserCacheInvalidation {
 
     UserCacheInvalidation(CacheGateway cache) {
         this.cache = cache;
+    }
+
+    /**
+     * Un profil vient de naître. Sans effet à l'inscription classique — un identifiant tiré à
+     * l'instant n'est dans aucun cache — mais indispensable pour une identité fédérée, dont
+     * l'identifiant est celui du jeton : quelque chose a pu le demander avant qu'il existe, et
+     * l'absence est cachée comme le reste.
+     */
+    @TransactionalEventListener
+    void on(UserRegistered event) {
+        evict(event.userId());
     }
 
     @TransactionalEventListener

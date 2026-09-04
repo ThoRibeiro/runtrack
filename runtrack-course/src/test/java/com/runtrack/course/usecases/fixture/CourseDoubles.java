@@ -17,6 +17,7 @@ import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.id.ActivityId;
 import com.runtrack.shared.id.UserId;
+import com.runtrack.user.FederatedProfile;
 import com.runtrack.user.NewUser;
 import com.runtrack.user.RunnerMass;
 import com.runtrack.user.UserApi;
@@ -321,6 +322,11 @@ public final class CourseDoubles {
         @Override
         public Optional<RunnerMass> massOf(UserId id) {
             return Optional.ofNullable(mass);
+        }
+
+        @Override
+        public boolean ensureProfile(UserId id, FederatedProfile profile) {
+            throw new UnsupportedOperationException("Hors du périmètre de ce double");
         }
 
         @Override

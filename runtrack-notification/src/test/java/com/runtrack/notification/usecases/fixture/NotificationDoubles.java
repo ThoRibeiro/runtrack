@@ -253,6 +253,11 @@ public final class NotificationDoubles {
         }
 
         @Override
+        public boolean ensureProfile(UserId id, com.runtrack.user.FederatedProfile profile) {
+            throw new UnsupportedOperationException("Hors du périmètre de notification");
+        }
+
+        @Override
         public void confirmEmail(UserId id) {
             throw new UnsupportedOperationException("Hors du périmètre de notification");
         }

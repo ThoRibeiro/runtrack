@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,8 +35,16 @@ class ViewerAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtDecoder decoder;
 
-    ViewerAuthenticationFilter(JwtDecoder decoder) {
+    /**
+     * Vide tant que l'application signe elle-même ses jetons : il n'y a alors pas d'identité
+     * à accueillir, l'inscription a déjà créé le profil.
+     */
+    private final Optional<FederatedAccountProvisioning> provisioning;
+
+    ViewerAuthenticationFilter(JwtDecoder decoder,
+            Optional<FederatedAccountProvisioning> provisioning) {
         this.decoder = decoder;
+        this.provisioning = provisioning;
     }
 
     @Override
@@ -45,7 +54,9 @@ class ViewerAuthenticationFilter extends OncePerRequestFilter {
         bearerTokenOf(request).ifPresent(token -> {
             try {
                 Jwt jwt = decoder.decode(token);
-                Viewer viewer = new Viewer.AuthenticatedUser(UserId.of(jwt.getSubject()));
+                UserId userId = UserId.of(jwt.getSubject());
+                provisioning.ifPresent(accounts -> accounts.ensureProfileOf(jwt, userId));
+                Viewer viewer = new Viewer.AuthenticatedUser(userId);
                 SecurityContextHolder.getContext().setAuthentication(
                         new UsernamePasswordAuthenticationToken(viewer, null, List.of()));
             } catch (JwtException | IllegalArgumentException expired) {
