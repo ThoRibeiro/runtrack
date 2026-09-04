@@ -120,7 +120,12 @@ final class SseSubscriber {
             LOG.debug("Abonné déconnecté pendant l'envoi : {}", rootCauseOf(disconnected));
             LOG.trace("Détail de la déconnexion", disconnected);
             closed.set(true);
-            emitter.completeWithError(disconnected);
+            // On termine, on ne signale pas d'erreur. `completeWithError` renvoie l'exception au
+            // conteneur, qui la traite comme une requête ratée : le DispatcherServlet la
+            // journalise en ERROR, puis tente de rendre `/error` dans une connexion déjà morte —
+            // trois piles pour un onglet fermé. Ce n'est visible que derrière un vrai serveur,
+            // ce qui est exactement ce que les tests de flux exercent depuis {@code SseStream}.
+            emitter.complete();
         }
     }
 
