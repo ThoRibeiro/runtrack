@@ -83,6 +83,13 @@
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk18on</artifactId>
     </dependency>
+    <!-- MockMvc : le pont d'identité se vérifie sur la chaîne HTTP réelle, filtre de
+         sécurité compris, et pas seulement sur les composants pris un à un. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-test</artifactId>
