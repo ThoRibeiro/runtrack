@@ -91,6 +91,17 @@ Keycloak sait en fabriquer.
 Tant que le front n'est pas basculé, `AuthController` et les jetons maison restent en place.
 Supprimer d'abord, c'est se priver de tout chemin de repli.
 
+### 11. Les fixtures d'intégration basculent en dernier, pas au lot 3
+
+Le découpage prévoyait de faire forger son jeton à `CourseFixtures` dès le lot 3. C'était une
+erreur de séquencement : les 171 tests d'intégration sont **la** couverture du mode local, et
+le mode local reste en service jusqu'au lot 5. Les faire passer par un jeton forgé maintenant
+reviendrait à cesser de tester ce qui tourne encore.
+
+Le lot 3 livre donc la **capacité** — des jetons de realm forgés sur place, un décodeur de
+test, et le pont vérifié de bout en bout par `FederatedIdentityIT` — et la bascule des
+fixtures rejoint le lot 5, où elle accompagne la disparition de `/auth/v1/signup`.
+
 ### 9. Une adresse déjà prise arrête l'accueil du compte
 
 Rattacher une identité fédérée à un profil existant sur la seule foi de l'adresse est le
@@ -116,9 +127,9 @@ branche poussée.
 | --- | --- | --- |
 | **1** ✅ | Le realm, la stack locale, la bascule du décodeur | Un jeton Keycloak est accepté par l'API, `provider=local` reste le défaut et ne change rien |
 | **2** ✅ | Le pont identité : `sub` = `UserId`, provisioning paresseux, `UserRegistered` | Une première requête d'un compte Keycloak inconnu crée son profil |
-| **3** | Les tests : décodeur de test, `CourseFixtures` qui forge son jeton | Les 171 ITs passent sans `/auth/v1/signup`, build toujours à deux minutes |
+| **3** ✅ | Les tests : jetons forgés, décodeur de test, et le pont vérifié de bout en bout | Un jeton de realm ouvre un profil et le parcours « choisis ton pseudo » fonctionne, sans Keycloak dans le build |
 | **4** | Le front : `expo-auth-session` + PKCE, écran « choisis ton pseudo », réglages de rotation du realm | Connexion, refresh et déconnexion fonctionnent sur web, iOS et Android |
-| **5** | La suppression : `AuthController`, `Credentials`, les deux familles de jetons, les mails, la table `V201` | Plus une ligne de mot de passe dans le dépôt |
+| **5** | La suppression : `AuthController`, `Credentials`, les deux familles de jetons, les mails, la table `V201`, et `CourseFixtures` qui forge son jeton au lieu de s'inscrire | Plus une ligne de mot de passe dans le dépôt |
 
 Les lots 1 à 3 sont livrables sans que rien ne change pour l'utilisateur : l'application
 accepte les deux mondes. C'est le lot 4 qui bascule, et le lot 5 qui ferme la porte.
