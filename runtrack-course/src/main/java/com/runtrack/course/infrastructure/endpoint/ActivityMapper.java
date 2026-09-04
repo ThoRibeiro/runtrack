@@ -5,6 +5,7 @@ import com.runtrack.course.usecases.model.stats.ActivityStats;
 import com.runtrack.course.infrastructure.dto.ActivityDtos;
 import com.runtrack.shared.measure.Elevation;
 import com.runtrack.shared.measure.Pace;
+import com.runtrack.user.UserSummary;
 
 /**
  * Agrégat et statistiques vers DTO, à la main.
@@ -19,15 +20,20 @@ public final class ActivityMapper {
     }
 
     public static ActivityDtos.ActivityResponse toResponse(Activity activity, ActivityStats stats) {
-        return toResponse(activity, stats, null);
+        return toResponse(activity, stats, null, null);
     }
 
-    public static ActivityDtos.ActivityResponse toResponse(
-            Activity activity, ActivityStats stats, String previewPolyline) {
+    /**
+     * @param author absent quand l'appelant n'a pas de profil à donner — le direct, par exemple,
+     *     qui rediffuse des chiffres sans jamais changer d'auteur au fil de la course
+     */
+    public static ActivityDtos.ActivityResponse toResponse(Activity activity, ActivityStats stats,
+            String previewPolyline, UserSummary author) {
 
         return new ActivityDtos.ActivityResponse(
                 activity.id().toString(),
                 activity.ownerId().toString(),
+                toAuthor(author),
                 activity.type().name(),
                 activity.title(),
                 activity.description().orElse(null),
@@ -37,6 +43,14 @@ public final class ActivityMapper {
                 activity.status().isTerminal() ? activity.status().since() : null,
                 toStats(stats),
                 previewPolyline);
+    }
+
+    private static ActivityDtos.AuthorDto toAuthor(UserSummary author) {
+        if (author == null) {
+            return null;
+        }
+        return new ActivityDtos.AuthorDto(author.id().toString(), author.handle(),
+                author.displayName(), author.avatarUrl().orElse(null));
     }
 
     public static ActivityDtos.StatsResponse toStats(ActivityStats stats) {

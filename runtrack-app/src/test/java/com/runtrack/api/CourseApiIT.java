@@ -120,6 +120,21 @@ class CourseApiIT extends ApiIntegrationTest {
                 .andExpect(jsonPath("$.title").value("Sortie du matin"));
     }
 
+    /**
+     * L'écran de course affiche le coureur, pas son identifiant : sans l'auteur imbriqué, il
+     * n'aurait ni nom ni photo à montrer, et aucune route ne résout un {@code ownerId}.
+     */
+    @Test
+    void readingARunNamesItsAuthor() throws Exception {
+        Account marie = newAccount();
+        String runId = startRun(marie, "PUBLIC");
+
+        mvc.perform(get("/race/v1/" + runId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.author.id").value(marie.id()))
+                .andExpect(jsonPath("$.author.displayName").value("Coureur"));
+    }
+
     /** Une course privée se comporte comme si elle n'existait pas. */
     @Test
     void aPrivateRunIsInvisibleToOthers() throws Exception {
@@ -262,7 +277,9 @@ class CourseApiIT extends ApiIntegrationTest {
         mvc.perform(get("/race/v1/live").header("Authorization", bearer(paul)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
-                .andExpect(jsonPath("$.items[0].status").value("Live"));
+                .andExpect(jsonPath("$.items[0].status").value("Live"))
+                // La liste mélange les coureurs suivis : sans auteur, elle serait anonyme.
+                .andExpect(jsonPath("$.items[0].author.id").value(marie.id()));
     }
 
     @Test
