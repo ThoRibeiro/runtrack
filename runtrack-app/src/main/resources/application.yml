@@ -12,6 +12,14 @@ spring:
     username: ${RUNTRACK_DB_USER:runtrack}
     password: ${RUNTRACK_DB_PASSWORD:runtrack}
 
+  servlet:
+    multipart:
+      # La photo de profil, et rien d'autre : la limite du cas d'usage est de 2 Mo, celle
+      # du transport la double pour laisser passer l'enveloppe multipart. Au-delà, la
+      # requête est refusée avant d'atteindre le disque de travail.
+      max-file-size: 4MB
+      max-request-size: 4MB
+
   jpa:
     # Le schéma appartient à Flyway. `validate` fait échouer le démarrage si une entité
     # et sa table divergent, plutôt que de laisser Hibernate « réparer » en silence.
@@ -35,8 +43,23 @@ spring:
       # ressort jamais — l'outbox serait une archive, pas une garantie de livraison.
       republish-outstanding-events-on-restart: true
 
+  security:
+    filter:
+      # Sans `async` : la reprise asynchrone n'est pas une requête, c'est la fin de celle qui a
+      # déjà traversé la chaîne. La rejouer sur un flux SSE ouvert depuis plus longtemps que la
+      # durée de vie d'un jeton (15 min) la trouve anonyme, la refuse, et le refus arrive après
+      # que la réponse est émise — d'où un ERROR à chaque fermeture d'abonnement.
+      dispatcher-types: request,error
+
   flyway:
     enabled: true
+    # Un emplacement par module et une centaine par module : deux modules avancent alors en
+    # parallèle, et une base qui a déjà appliqué `801` reçoit encore une `103`. Sans cela,
+    # plus aucun module « bas » ne peut évoluer une fois qu'un module « haut » est déployé.
+    #
+    # Sans danger ici : aucune table n'a de clé étrangère vers un autre module (cf. V201),
+    # donc l'ordre relatif de deux migrations de modules différents ne signifie rien.
+    out-of-order: true
     # Un emplacement par module : chaque table appartient à son module, ses migrations
     # aussi. Les versions sont réparties par centaines pour éviter les collisions.
     locations:
@@ -105,7 +128,11 @@ runtrack:
     # Doit rester nettement au-dessus de LiveActivityStream.SNAPSHOT_POINTS : l'instantané
     # entre dans cette file avant le premier événement en direct.
     subscriber-queue-capacity: 512
-    poll-timeout: 2s
+    # Doit rester **strictement sous** `spring.data.redis.timeout` : le XREAD est bloquant, et
+    # Lettuce compte son propre délai sur la même commande. À égalité, Dragonfly répond à
+    # l'instant où le client abandonne, et chaque tour de boucle sans message lève un
+    # RedisCommandTimeoutException — en continu dès qu'une course est suivie.
+    poll-timeout: 1s
 
   auth:
     jwt:

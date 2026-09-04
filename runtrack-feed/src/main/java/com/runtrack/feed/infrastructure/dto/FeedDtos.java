@@ -15,7 +15,8 @@ public final class FeedDtos {
      *
      * <p>L'auteur est imbriqué plutôt que réduit à un identifiant : sans cela, l'écran ferait une
      * requête par ligne pour aller chercher un nom — le N+1 que le §10 interdit, déplacé côté
-     * client.
+     * client. {@code previewPolyline} suit la même logique : la carte de la ligne se dessine
+     * avec ce qui arrive dans la page, sans une requête de trace par course.
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record FeedItem(
@@ -29,7 +30,8 @@ public final class FeedDtos {
             Instant startedAt,
             Instant endedAt,
             long likeCount,
-            long commentCount) {
+            long commentCount,
+            String previewPolyline) {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

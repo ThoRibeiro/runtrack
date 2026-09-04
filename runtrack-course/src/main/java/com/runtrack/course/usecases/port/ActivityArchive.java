@@ -19,6 +19,17 @@ public interface ActivityArchive {
 
     Optional<ArchivedTrack> find(ActivityId activityId);
 
+    /**
+     * Les vignettes de plusieurs courses, en une requête.
+     *
+     * <p>En lot, et c'est tout l'intérêt : une liste de vingt courses qui irait chercher sa
+     * vignette course par course, c'est le N+1 que le §10 interdit.
+     *
+     * @return les vignettes trouvées, par identifiant de course ; une course sans trace
+     *     historisée n'y figure pas
+     */
+    java.util.Map<ActivityId, String> previewsOf(java.util.Collection<ActivityId> activityIds);
+
     List<Split> splitsOf(ActivityId activityId);
 
     void delete(ActivityId activityId);
@@ -38,6 +49,8 @@ public interface ActivityArchive {
      * La trace telle qu'elle est conservée.
      *
      * @param polyline la trace simplifiée, encodée
+     * @param previewPolyline la même trace, beaucoup plus grossière : ce qu'une vignette de
+     *     liste dessine, sans faire télécharger la trace entière
      * @param pointCount ce qu'il en reste après simplification
      * @param rawPointCount ce qu'elle comptait avant — l'écart entre les deux dit ce qu'on a gagné
      * @param positions les positions retenues, pour construire la géométrie PostGIS
@@ -45,6 +58,7 @@ public interface ActivityArchive {
     record ArchivedTrack(
             ActivityId activityId,
             String polyline,
+            String previewPolyline,
             int pointCount,
             int rawPointCount,
             List<com.runtrack.shared.measure.GeoPoint> positions,

@@ -131,21 +131,23 @@ class CachedFeedProjection implements FeedProjection {
             Instant startedAt,
             Instant endedAt,
             long likeCount,
-            long commentCount) {
+            long commentCount,
+            String previewPolyline) {
 
         static StoredEntry of(FeedEntry entry) {
             return new StoredEntry(
                     entry.activityId().value(), entry.ownerId().value(), entry.type(), entry.title(),
                     entry.status(), entry.effectiveScope().name(), entry.distanceMeters(),
                     entry.movingTimeSeconds(), entry.startedAt(), entry.endedAt().orElse(null),
-                    entry.likeCount(), entry.commentCount());
+                    entry.likeCount(), entry.commentCount(), entry.previewPolyline().orElse(null));
         }
 
         FeedEntry toEntry() {
             return new FeedEntry(
                     new ActivityId(activityId), new UserId(ownerId), type, title, status,
                     AudienceScope.valueOf(effectiveScope), distanceMeters, movingTimeSeconds,
-                    startedAt, Optional.ofNullable(endedAt), likeCount, commentCount);
+                    startedAt, Optional.ofNullable(endedAt), likeCount, commentCount,
+                    Optional.ofNullable(previewPolyline));
         }
     }
 }

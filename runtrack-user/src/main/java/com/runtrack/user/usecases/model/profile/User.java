@@ -23,6 +23,15 @@ public final class User {
     private final UserId id;
     private final Instant registeredAt;
 
+    /**
+     * Quand ce profil a changé pour la dernière fois.
+     *
+     * <p>Chaque mutation reçoit son instant plutôt que de le lire d'une horloge : un agrégat
+     * qui va chercher l'heure lui-même n'est plus testable sans faire avancer le temps réel.
+     * C'est la règle que {@code Credentials.changePassword} suit déjà.
+     */
+    private Instant updatedAt;
+
     private Handle handle;
     private Email email;
     private String displayName;
@@ -37,6 +46,7 @@ public final class User {
         this.handle = handle;
         this.email = email;
         this.registeredAt = registeredAt;
+        this.updatedAt = registeredAt;
         this.accountScope = AudienceScope.PUBLIC;
         this.status = AccountStatus.PENDING_VERIFICATION;
         this.physiology = Physiology.UNKNOWN;
@@ -56,21 +66,23 @@ public final class User {
      */
     public static User rehydrate(UserId id, Handle handle, Email email, String displayName,
             String avatarUrl, String bio, AudienceScope accountScope, AccountStatus status,
-            Physiology physiology, Instant registeredAt) {
+            Physiology physiology, Instant registeredAt, Instant updatedAt) {
         User user = new User(id, handle, email, displayName, registeredAt);
         user.avatarUrl = avatarUrl;
         user.bio = bio;
         user.accountScope = accountScope;
         user.status = status;
         user.physiology = physiology;
+        user.updatedAt = updatedAt;
         return user;
     }
 
-    public void verifyEmail() {
+    public void verifyEmail(Instant at) {
         if (status != AccountStatus.PENDING_VERIFICATION) {
             throw new ConflictException("EMAIL_ALREADY_VERIFIED", "Cette adresse est déjà confirmée");
         }
         status = AccountStatus.ACTIVE;
+        touch(at);
     }
 
     /**
@@ -86,47 +98,53 @@ public final class User {
      *
      * @param newAvatarUrl {@code null} ou vide retire la photo
      */
-    public void changeAvatar(String newAvatarUrl) {
+    public void changeAvatar(String newAvatarUrl, Instant at) {
         requireActive();
         this.avatarUrl = trimmedOrNull(newAvatarUrl, 2_000, "URL d'avatar");
+        touch(at);
     }
 
-    public void updateProfile(String newDisplayName, String newBio, String newAvatarUrl) {
+    public void updateProfile(String newDisplayName, String newBio, String newAvatarUrl, Instant at) {
         requireActive();
         this.displayName = requireDisplayName(newDisplayName);
         this.bio = trimmedOrNull(newBio, MAX_BIO, "Biographie");
         this.avatarUrl = trimmedOrNull(newAvatarUrl, 2_000, "URL d'avatar");
+        touch(at);
     }
 
-    public void changeHandle(Handle newHandle) {
+    public void changeHandle(Handle newHandle, Instant at) {
         requireActive();
         if (newHandle == null) {
             throw new IllegalArgumentException("Identifiant public absent");
         }
         this.handle = newHandle;
+        touch(at);
     }
 
-    public void changeAccountScope(AudienceScope newScope) {
+    public void changeAccountScope(AudienceScope newScope, Instant at) {
         requireActive();
         if (newScope == null) {
             throw new IllegalArgumentException("Portée de visibilité absente");
         }
         this.accountScope = newScope;
+        touch(at);
     }
 
-    public void recordPhysiology(Physiology newPhysiology) {
+    public void recordPhysiology(Physiology newPhysiology, Instant at) {
         requireActive();
         if (newPhysiology == null) {
             throw new IllegalArgumentException("Physiologie absente : utiliser Physiology.UNKNOWN");
         }
         this.physiology = newPhysiology;
+        touch(at);
     }
 
-    public void suspend() {
+    public void suspend(Instant at) {
         if (status == AccountStatus.DELETED) {
             throw new ConflictException("ACCOUNT_DELETED", "Ce compte est supprimé");
         }
         status = AccountStatus.SUSPENDED;
+        touch(at);
     }
 
     /**
@@ -136,7 +154,7 @@ public final class User {
      * toute la physiologie. Conservé : l'identifiant technique, parce que les courses le
      * référencent, et la date d'inscription, qui n'identifie personne.
      */
-    public void anonymize(String anonymousSuffix) {
+    public void anonymize(String anonymousSuffix, Instant at) {
         if (status == AccountStatus.DELETED) {
             throw new ConflictException("ACCOUNT_DELETED", "Ce compte est déjà supprimé");
         }
@@ -151,6 +169,14 @@ public final class User {
         this.physiology = Physiology.UNKNOWN;
         this.accountScope = AudienceScope.PRIVATE;
         this.status = AccountStatus.DELETED;
+        touch(at);
+    }
+
+    private void touch(Instant at) {
+        if (at == null) {
+            throw new IllegalArgumentException("Date de modification absente");
+        }
+        this.updatedAt = at;
     }
 
     private void requireActive() {
@@ -220,5 +246,9 @@ public final class User {
 
     public Instant registeredAt() {
         return registeredAt;
+    }
+
+    public Instant updatedAt() {
+        return updatedAt;
     }
 }

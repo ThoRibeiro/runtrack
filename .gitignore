@@ -11,3 +11,6 @@ target/
 .env
 *.local.yml
 secrets/
+
+# Jeu de données de test local, hors dépôt : il ne parle qu'à une base de développement.
+/scripts/seed-test-data.py

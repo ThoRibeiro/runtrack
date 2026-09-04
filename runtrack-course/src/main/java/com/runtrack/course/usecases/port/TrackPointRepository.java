@@ -32,6 +32,19 @@ public interface TrackPointRepository {
 
     List<TrackPoint> findAll(ActivityId activityId);
 
+    /**
+     * Une poignée de positions par course, réparties sur toute la trace.
+     *
+     * <p>Sert la vignette d'une course <b>en cours</b> : elle n'a pas encore de trace figée —
+     * le gel arrive à la fin — et une carte de fil sans tracé est un cadre vide. L'échantillon
+     * est pris en base, pour ne pas ramener dix mille points afin d'en dessiner soixante.
+     *
+     * <p>En lot, et pour la même raison que partout ailleurs : une requête par course, sur un
+     * fil, c'est le N+1 du §10.
+     */
+    java.util.Map<ActivityId, List<com.runtrack.shared.measure.GeoPoint>> sample(
+            java.util.Collection<ActivityId> activityIds, int maxPointsPerActivity);
+
     void deleteAll(ActivityId activityId);
 
     int count(ActivityId activityId);

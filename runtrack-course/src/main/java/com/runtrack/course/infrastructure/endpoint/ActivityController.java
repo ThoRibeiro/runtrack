@@ -15,6 +15,8 @@ import com.runtrack.shared.access.Viewer;
 import com.runtrack.shared.id.ActivityId;
 import com.runtrack.shared.id.UserId;
 import com.runtrack.social.SocialApi;
+import com.runtrack.user.UserApi;
+import com.runtrack.user.UserSummary;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.time.Instant;
@@ -51,13 +53,15 @@ class ActivityController {
     private final ActivityQueries queries;
     private final ActivityArchival archival;
     private final SocialApi social;
+    private final UserApi users;
 
     ActivityController(ActivityLifecycle lifecycle, ActivityQueries queries,
-            ActivityArchival archival, SocialApi social) {
+            ActivityArchival archival, SocialApi social, UserApi users) {
         this.lifecycle = lifecycle;
         this.queries = queries;
         this.archival = archival;
         this.social = social;
+        this.users = users;
     }
 
     @Operation(summary = "Démarrer une course")
@@ -140,7 +144,11 @@ class ActivityController {
     @GetMapping("/race/v1/{id}")
     ActivityDtos.ActivityResponse byId(@AuthenticationPrincipal Viewer viewer, @PathVariable String id) {
         Activity activity = queries.require(asViewer(viewer), ActivityId.of(id));
-        return ActivityMapper.toResponse(activity, queries.statsOf(activity));
+        return ActivityMapper.toResponse(activity, queries.statsOf(activity),
+                archival.trackOf(activity.id())
+                        .map(track -> track.previewPolyline())
+                        .orElse(null),
+                users.summary(activity.ownerId()).orElse(null));
     }
 
     @Operation(summary = "Lister les courses d'un coureur", tags = ApiFolders.ACCOUNTS)
@@ -192,8 +200,17 @@ class ActivityController {
     }
 
     private ActivityDtos.ActivityPage toPage(List<Activity> found) {
+        // Une requête pour toute la page : voir `ActivityArchival.previewsOf`.
+        java.util.Map<ActivityId, String> previews =
+                archival.previewsOf(found.stream().map(Activity::id).toList());
+        // Idem pour les auteurs : `/race/v1/live` mélange les coureurs suivis, et un
+        // `summary` par ligne serait le N+1 que le §10 interdit.
+        java.util.Map<UserId, UserSummary> authors = users.summaries(
+                found.stream().map(Activity::ownerId).distinct().toList());
+
         List<ActivityDtos.ActivityResponse> items = found.stream()
-                .map(activity -> ActivityMapper.toResponse(activity, queries.statsOf(activity)))
+                .map(activity -> ActivityMapper.toResponse(activity, queries.statsOf(activity),
+                        previews.get(activity.id()), authors.get(activity.ownerId())))
                 .toList();
         Instant next = found.isEmpty() ? null : found.getLast().startedAt();
         return new ActivityDtos.ActivityPage(items, next);

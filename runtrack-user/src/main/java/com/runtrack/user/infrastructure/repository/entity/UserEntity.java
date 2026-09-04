@@ -59,6 +59,9 @@ public class UserEntity {
     @Column(name = "registered_at", nullable = false)
     private Instant registeredAt;
 
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
     @Version
     private long version;
 
@@ -68,7 +71,7 @@ public class UserEntity {
 
     public UserEntity(UUID id, String handle, String email, String displayName, String avatarUrl,
             String bio, String accountScope, String status, LocalDate birthDate, String biologicalSex,
-            Double weightKilograms, Double heightCentimeters, Instant registeredAt) {
+            Double weightKilograms, Double heightCentimeters, Instant registeredAt, Instant updatedAt) {
         this.id = id;
         this.handle = handle;
         this.email = email;
@@ -82,6 +85,7 @@ public class UserEntity {
         this.weightKilograms = weightKilograms;
         this.heightCentimeters = heightCentimeters;
         this.registeredAt = registeredAt;
+        this.updatedAt = updatedAt;
     }
 
     public UUID getId() {
@@ -136,6 +140,10 @@ public class UserEntity {
         return registeredAt;
     }
 
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
     public void refreshFrom(UserEntity other) {
         this.handle = other.handle;
         this.email = other.email;
@@ -148,5 +156,7 @@ public class UserEntity {
         this.biologicalSex = other.biologicalSex;
         this.weightKilograms = other.weightKilograms;
         this.heightCentimeters = other.heightCentimeters;
+        // `registeredAt` reste délibérément absent : la date d'inscription ne se remplace pas.
+        this.updatedAt = other.updatedAt;
     }
 }

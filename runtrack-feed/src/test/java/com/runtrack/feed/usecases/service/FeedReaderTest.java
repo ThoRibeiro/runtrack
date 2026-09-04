@@ -172,7 +172,8 @@ class FeedReaderTest {
     private ActivityId entry(UserId owner, AudienceScope scope, long secondsAfterNoon) {
         var id = new ActivityId(UUID.randomUUID());
         projection.upsert(new FeedEntry(id, owner, "RUN", "Sortie", "Finished", scope,
-                1_000, 300, NOON.plusSeconds(secondsAfterNoon), Optional.empty(), 0, 0));
+                1_000, 300, NOON.plusSeconds(secondsAfterNoon), Optional.empty(), 0, 0,
+                Optional.of("_p~iF~ps|U")));
         return id;
     }
 

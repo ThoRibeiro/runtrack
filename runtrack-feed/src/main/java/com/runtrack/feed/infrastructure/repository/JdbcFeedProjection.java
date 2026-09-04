@@ -31,7 +31,8 @@ class JdbcFeedProjection implements FeedProjection {
 
     private static final String COLUMNS = """
             activity_id, owner_id, type, title, status, effective_scope,
-            distance_meters, moving_time_seconds, started_at, ended_at, like_count, comment_count
+            distance_meters, moving_time_seconds, started_at, ended_at, like_count, comment_count,
+            preview_polyline
             """;
 
     private static final RowMapper<FeedEntry> MAPPER = (rs, rowNumber) -> new FeedEntry(
@@ -47,7 +48,8 @@ class JdbcFeedProjection implements FeedProjection {
             Optional.ofNullable(rs.getObject("ended_at", OffsetDateTime.class))
                     .map(OffsetDateTime::toInstant),
             rs.getLong("like_count"),
-            rs.getLong("comment_count"));
+            rs.getLong("comment_count"),
+            Optional.ofNullable(rs.getString("preview_polyline")));
 
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -68,14 +70,16 @@ class JdbcFeedProjection implements FeedProjection {
         parameters.put("movingTime", entry.movingTimeSeconds());
         parameters.put("startedAt", entry.startedAt().atOffset(ZoneOffset.UTC));
         parameters.put("endedAt", entry.endedAt().map(at -> at.atOffset(ZoneOffset.UTC)).orElse(null));
+        parameters.put("preview", entry.previewPolyline().orElse(null));
 
         // Les compteurs ne figurent pas dans la mise à jour : ils appartiennent à `engagement` et
         // seraient remis à zéro par une fin de course arrivée après un premier « j'aime ».
         jdbc.update("""
                 INSERT INTO feed_entries (activity_id, owner_id, type, title, status, effective_scope,
-                                          distance_meters, moving_time_seconds, started_at, ended_at)
+                                          distance_meters, moving_time_seconds, started_at, ended_at,
+                                          preview_polyline)
                 VALUES (:activityId, :ownerId, :type, :title, :status, :scope,
-                        :distance, :movingTime, :startedAt, :endedAt)
+                        :distance, :movingTime, :startedAt, :endedAt, :preview)
                 ON CONFLICT (activity_id) DO UPDATE SET
                     type = EXCLUDED.type,
                     title = EXCLUDED.title,
@@ -83,7 +87,10 @@ class JdbcFeedProjection implements FeedProjection {
                     effective_scope = EXCLUDED.effective_scope,
                     distance_meters = EXCLUDED.distance_meters,
                     moving_time_seconds = EXCLUDED.moving_time_seconds,
-                    ended_at = EXCLUDED.ended_at
+                    ended_at = EXCLUDED.ended_at,
+                    -- La vignette n'arrive qu'au gel : une mise à jour antérieure ne doit
+                    -- pas effacer celle qu'une fin de course vient d'écrire.
+                    preview_polyline = COALESCE(EXCLUDED.preview_polyline, feed_entries.preview_polyline)
                 """, parameters);
     }
 

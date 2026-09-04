@@ -6,16 +6,34 @@ spring:
   jpa:
     # Utile pour comprendre une requête, insupportable en production.
     show-sql: false
+  mail:
+    # Mailpit, monté par docker-compose : il accepte tout et n'expédie rien. Les messages se
+    # lisent sur http://localhost:8025. Sans authentification, donc rien à mettre ici.
+    host: localhost
+    port: 1025
 
 runtrack:
+  mail:
+    # Un vrai envoi, vers un serveur qui n'expédie pas : le parcours de confirmation et celui
+    # du mot de passe oublié se vérifient en entier. `logging` reste là pour travailler sans
+    # docker — le lien sort alors dans la console.
+    provider: smtp
+    # Celle du *front*, pas de l'API : le lien ouvre un écran, qui appelle l'API ensuite.
+    base-url: http://localhost:8081
   push:
     # L'envoyeur qui écrit ce qu'il aurait envoyé : développer les notifications sans compte
     # Firebase est une exigence explicite du §7.
     provider: logging
   cors:
+    # Le front est une application Expo : `expo start --web` sert sur 8081, et l'export
+    # statique se relit sur 4173 pendant la suite de bout en bout. Les deux formes de la
+    # boucle locale sont nécessaires — un navigateur traite `localhost` et `127.0.0.1`
+    # comme deux origines distinctes.
     allowed-origins:
-      - http://localhost:5173
-      - http://localhost:3000
+      - http://localhost:8081
+      - http://127.0.0.1:8081
+      - http://localhost:4173
+      - http://127.0.0.1:4173
 
 logging:
   level:

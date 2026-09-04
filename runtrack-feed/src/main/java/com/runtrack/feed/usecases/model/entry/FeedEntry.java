@@ -25,11 +25,13 @@ public record FeedEntry(
         Instant startedAt,
         Optional<Instant> endedAt,
         long likeCount,
-        long commentCount) {
+        long commentCount,
+        Optional<String> previewPolyline) {
 
     public FeedEntry {
         if (activityId == null || ownerId == null || type == null || title == null
-                || status == null || effectiveScope == null || startedAt == null || endedAt == null) {
+                || status == null || effectiveScope == null || startedAt == null || endedAt == null
+                || previewPolyline == null) {
             throw new IllegalArgumentException("Entrée de fil incomplète");
         }
     }

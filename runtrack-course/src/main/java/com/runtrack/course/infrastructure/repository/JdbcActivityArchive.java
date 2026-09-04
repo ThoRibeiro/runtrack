@@ -34,11 +34,12 @@ import org.springframework.stereotype.Repository;
 class JdbcActivityArchive implements ActivityArchive {
 
     private static final String UPSERT_TRACK = """
-            INSERT INTO activity_tracks (activity_id, polyline, point_count, raw_point_count,
-                                         geom, frozen_at, points_purged_at)
-            VALUES (?, ?, ?, ?, %s, ?, NULL)
+            INSERT INTO activity_tracks (activity_id, polyline, preview_polyline, point_count,
+                                         raw_point_count, geom, frozen_at, points_purged_at)
+            VALUES (?, ?, ?, ?, ?, %s, ?, NULL)
             ON CONFLICT (activity_id) DO UPDATE SET
                 polyline = EXCLUDED.polyline,
+                preview_polyline = EXCLUDED.preview_polyline,
                 point_count = EXCLUDED.point_count,
                 raw_point_count = EXCLUDED.raw_point_count,
                 geom = EXCLUDED.geom,
@@ -82,13 +83,14 @@ class JdbcActivityArchive implements ActivityArchive {
 
         if (hasLine) {
             jdbc.update(UPSERT_TRACK.formatted(geometry),
-                    track.activityId().value(), track.polyline(), track.pointCount(),
-                    track.rawPointCount(), wktOf(track.positions()),
+                    track.activityId().value(), track.polyline(), track.previewPolyline(),
+                    track.pointCount(), track.rawPointCount(), wktOf(track.positions()),
                     track.frozenAt().atOffset(ZoneOffset.UTC));
         } else {
             jdbc.update(UPSERT_TRACK.formatted(geometry),
-                    track.activityId().value(), track.polyline(), track.pointCount(),
-                    track.rawPointCount(), track.frozenAt().atOffset(ZoneOffset.UTC));
+                    track.activityId().value(), track.polyline(), track.previewPolyline(),
+                    track.pointCount(), track.rawPointCount(),
+                    track.frozenAt().atOffset(ZoneOffset.UTC));
         }
         saveSplits(track.activityId(), splits);
     }
@@ -126,11 +128,13 @@ class JdbcActivityArchive implements ActivityArchive {
     @Override
     public Optional<ArchivedTrack> find(ActivityId activityId) {
         return jdbc.query("""
-                SELECT activity_id, polyline, point_count, raw_point_count, frozen_at, points_purged_at
+                SELECT activity_id, polyline, preview_polyline, point_count, raw_point_count,
+                       frozen_at, points_purged_at
                 FROM activity_tracks WHERE activity_id = ?
                 """, (rs, rowNumber) -> new ArchivedTrack(
                         new ActivityId(rs.getObject("activity_id", UUID.class)),
                         rs.getString("polyline"),
+                        rs.getString("preview_polyline"),
                         rs.getInt("point_count"),
                         rs.getInt("raw_point_count"),
                         // Les positions ne sont pas relues : ce que le client affiche est la
@@ -140,6 +144,26 @@ class JdbcActivityArchive implements ActivityArchive {
                         Optional.ofNullable(rs.getObject("points_purged_at", OffsetDateTime.class))
                                 .map(OffsetDateTime::toInstant)),
                 activityId.value()).stream().findFirst();
+    }
+
+    @Override
+    public java.util.Map<ActivityId, String> previewsOf(java.util.Collection<ActivityId> activityIds) {
+        if (activityIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+
+        List<UUID> ids = activityIds.stream().map(ActivityId::value).toList();
+        String placeholders = ids.stream().map(id -> "?").collect(Collectors.joining(", "));
+
+        java.util.Map<ActivityId, String> previews = new java.util.LinkedHashMap<>();
+        jdbc.query("SELECT activity_id, preview_polyline FROM activity_tracks WHERE activity_id IN ("
+                        + placeholders + ") AND preview_polyline IS NOT NULL",
+                rs -> {
+                    previews.put(new ActivityId(rs.getObject("activity_id", UUID.class)),
+                            rs.getString("preview_polyline"));
+                },
+                ids.toArray());
+        return previews;
     }
 
     @Override

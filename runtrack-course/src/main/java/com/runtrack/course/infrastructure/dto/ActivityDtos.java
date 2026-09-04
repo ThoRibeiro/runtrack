@@ -29,10 +29,19 @@ public final class ActivityDtos {
     public record ChangeVisibilityRequest(@NotBlank String visibility) {
     }
 
+    /**
+     * @param author le coureur, imbriqué comme dans le fil — un écran qui n'a qu'un
+     *     {@code ownerId} ne peut afficher ni son nom ni sa photo, et aucune route ne résout un
+     *     identifiant en profil. Absent des réponses du direct, qui ne portent que des chiffres.
+     * @param previewPolyline la vignette de la trace, très simplifiée — de quoi dessiner le
+     *     parcours sur une carte de liste sans télécharger la trace entière. Absente tant que
+     *     la course n'est pas historisée, et sur celles gelées avant son introduction.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ActivityResponse(
             String id,
             String ownerId,
+            AuthorDto author,
             String type,
             String title,
             String description,
@@ -40,7 +49,13 @@ public final class ActivityDtos {
             String status,
             Instant startedAt,
             Instant endedAt,
-            StatsResponse stats) {
+            StatsResponse stats,
+            String previewPolyline) {
+    }
+
+    /** De quoi nommer et illustrer un coureur, et rien de plus : la copie de {@code UserSummary}. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record AuthorDto(String id, String handle, String displayName, String avatarUrl) {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

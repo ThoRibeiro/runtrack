@@ -116,19 +116,20 @@ class CachedCourseApi implements CourseApi {
     record CachedSummary(
             String id, String ownerId, String type, String title, String status,
             String effectiveScope, double distanceMeters, long movingTimeSeconds,
-            Instant startedAt, Instant endedAt) {
+            Instant startedAt, Instant endedAt, String previewPolyline) {
 
         static CachedSummary from(ActivitySummary summary) {
             return new CachedSummary(summary.id().toString(), summary.ownerId().toString(),
                     summary.type(), summary.title(), summary.status(), summary.effectiveScope(),
                     summary.distanceMeters(), summary.movingTimeSeconds(),
-                    summary.startedAt(), summary.endedAt().orElse(null));
+                    summary.startedAt(), summary.endedAt().orElse(null),
+                    summary.previewPolyline().orElse(null));
         }
 
         ActivitySummary toSummary() {
             return new ActivitySummary(ActivityId.of(id), UserId.of(ownerId), type, title, status,
                     effectiveScope, distanceMeters, movingTimeSeconds, startedAt,
-                    Optional.ofNullable(endedAt));
+                    Optional.ofNullable(endedAt), Optional.ofNullable(previewPolyline));
         }
     }
 }

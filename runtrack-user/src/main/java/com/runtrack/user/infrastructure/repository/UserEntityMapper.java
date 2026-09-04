@@ -33,7 +33,8 @@ final class UserEntityMapper {
                 physiology.sex().map(Enum::name).orElse(null),
                 physiology.weightKilograms().isPresent() ? physiology.weightKilograms().getAsDouble() : null,
                 physiology.heightCentimeters().isPresent() ? physiology.heightCentimeters().getAsDouble() : null,
-                user.registeredAt());
+                user.registeredAt(),
+                user.updatedAt());
     }
 
     static User toDomain(UserEntity entity) {
@@ -47,7 +48,8 @@ final class UserEntityMapper {
                 AudienceScope.valueOf(entity.getAccountScope()),
                 AccountStatus.valueOf(entity.getStatus()),
                 toPhysiology(entity),
-                entity.getRegisteredAt());
+                entity.getRegisteredAt(),
+                entity.getUpdatedAt());
     }
 
     private static Physiology toPhysiology(UserEntity entity) {

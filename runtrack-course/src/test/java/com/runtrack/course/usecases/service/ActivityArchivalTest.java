@@ -86,6 +86,42 @@ class ActivityArchivalTest {
         assertThat(track.positions()).hasSize(track.pointCount());
     }
 
+    @Test
+    void aRunStillGoingGetsAThumbnailFromItsPointsSoFar() {
+        Activity run = aRun();
+        record(run, 300);
+
+        // Pas de gel : elle court encore. Sans échantillon, sa carte serait un cadre
+        // vide dans le fil jusqu'à ce qu'elle se termine.
+        assertThat(archival.previewsOf(List.of(run.id()))).containsKey(run.id());
+    }
+
+    @Test
+    void theFreezeAlsoKeepsAThumbnailOfTheTrack() {
+        Activity run = aRun();
+        // Un parcours qui tourne : sur une ligne droite, les deux simplifications rendent le
+        // même segment, et la vignette n'aurait rien prouvé.
+        List<TrackPoint> winding = IntStream.rangeClosed(1, 600)
+                .mapToObj(index -> aPoint().sequence(index)
+                        // Un lacet : la latitude alterne, sans quoi tous les points sont
+                        // alignés et les deux simplifications rendent le même segment.
+                        .at(new com.runtrack.shared.measure.GeoPoint(
+                                50.63 + (index % 2 == 0 ? 0.0006 : 0),
+                                3.06 + index * 0.0004))
+                        .secondsAfterStart(index * 2L).build())
+                .toList();
+        points.appendAll(run.id(), winding);
+
+        lifecycle.finish(MARIE, run.id());
+
+        ActivityArchive.ArchivedTrack track = archive.find(run.id()).orElseThrow();
+        // La vignette pèse moins que la trace d'affichage : c'est elle que dessinent les
+        // cartes du fil, vingt par page.
+        assertThat(track.previewPolyline()).isNotBlank();
+        assertThat(track.previewPolyline().length()).isLessThan(track.polyline().length());
+        assertThat(archive.previewsOf(List.of(run.id()))).containsKey(run.id());
+    }
+
     /**
      * Une course arrêtée sans le moindre point n'écrit rien.
      *

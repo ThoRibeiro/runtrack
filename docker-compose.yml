@@ -37,6 +37,26 @@ services:
       timeout: 3s
       retries: 10
 
+  # Le serveur de messagerie du poste : il accepte tout et n'expédie rien. Les messages se
+  # lisent sur http://localhost:8025 — confirmation d'adresse et mot de passe oublié se
+  # testent donc en entier sans relais réel et sans risquer d'écrire à quelqu'un.
+  mailpit:
+    image: axllent/mailpit:v1.31.0
+    container_name: runtrack-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    volumes:
+      - mailpit-data:/data
+    environment:
+      MP_DATABASE: /data/mailpit.db
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   postgres-data:
   dragonfly-data:
+  mailpit-data:

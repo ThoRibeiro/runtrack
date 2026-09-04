@@ -11,6 +11,8 @@ import java.sql.Types;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -121,6 +123,43 @@ class JdbcTrackPointRepository implements TrackPointRepository {
     @Override
     public List<TrackPoint> findAll(ActivityId activityId) {
         return jdbc.query(SELECT_ALL, MAPPER, activityId.value());
+    }
+
+    /**
+     * L'échantillon est pris <b>en base</b> : un {@code row_number()} par course, gardé un sur
+     * n selon le total. Ramener dix mille points pour n'en dessiner soixante coûterait plus
+     * cher que la vignette ne rapporte.
+     */
+    @Override
+    public java.util.Map<ActivityId, List<GeoPoint>> sample(
+            java.util.Collection<ActivityId> activityIds, int maxPointsPerActivity) {
+
+        if (activityIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+
+        List<UUID> ids = activityIds.stream().map(ActivityId::value).toList();
+        String placeholders = ids.stream().map(id -> "?").collect(Collectors.joining(", "));
+
+        String sql = """
+                SELECT activity_id, latitude, longitude FROM (
+                    SELECT activity_id, latitude, longitude, sequence_number,
+                           row_number() OVER (PARTITION BY activity_id ORDER BY sequence_number) AS rank,
+                           count(*) OVER (PARTITION BY activity_id) AS total
+                    FROM track_points
+                    WHERE activity_id IN (%s)
+                ) sampled
+                WHERE rank %% GREATEST(1, total / %d) = 0
+                ORDER BY activity_id, sequence_number
+                """.formatted(placeholders, maxPointsPerActivity);
+
+        java.util.Map<ActivityId, List<GeoPoint>> sampled = new java.util.LinkedHashMap<>();
+        jdbc.query(sql, rs -> {
+            ActivityId id = new ActivityId(rs.getObject("activity_id", UUID.class));
+            sampled.computeIfAbsent(id, key -> new java.util.ArrayList<>())
+                    .add(new GeoPoint(rs.getDouble("latitude"), rs.getDouble("longitude")));
+        }, ids.toArray());
+        return sampled;
     }
 
     @Override

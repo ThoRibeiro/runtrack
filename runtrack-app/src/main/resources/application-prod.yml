@@ -4,6 +4,13 @@
 # l'application refuse de démarrer plutôt que de deviner une valeur manquante.
 
 spring:
+  mail:
+    host: ${RUNTRACK_MAIL_HOST}
+    port: ${RUNTRACK_MAIL_PORT:587}
+    username: ${RUNTRACK_MAIL_USER}
+    password: ${RUNTRACK_MAIL_PASSWORD}
+    properties:
+      mail.smtp.starttls.enable: true
   jpa:
     # Le schéma appartient à Flyway. `validate` fait échouer le démarrage si une entité et sa
     # table divergent, plutôt que de laisser Hibernate « réparer » en silence.
@@ -12,6 +19,10 @@ spring:
     open-in-view: false
 
 runtrack:
+  mail:
+    provider: smtp
+    from: ${RUNTRACK_MAIL_FROM:no-reply@runtrack.app}
+    base-url: ${RUNTRACK_FRONT_URL:}
   push:
     provider: fcm
   cors:

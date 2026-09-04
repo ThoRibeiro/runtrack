@@ -14,8 +14,16 @@ import org.testcontainers.utility.DockerImageName;
 /**
  * Base des tests d'API : l'application entière, chaîne de sécurité et traduction des
  * erreurs comprises, contre un vrai PostgreSQL.
+ *
+ * <p><b>Un serveur pour de vrai, et MockMvc par-dessus.</b> Tout ce qui se joue en une
+ * requête-réponse passe par MockMvc, plus rapide et plus lisible. Le SSE, lui, exige un
+ * conteneur : sa réponse est écrite par deux fils à la fois, et celle de MockMvc ne le
+ * supporte pas — voir {@link SseStream}. Les deux cohabitent sur le même contexte, donc
+ * sans second démarrage.
  */
-@SpringBootTest(classes = RunTrackApplication.class)
+@SpringBootTest(
+        classes = RunTrackApplication.class,
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 public abstract class ApiIntegrationTest {
