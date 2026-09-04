@@ -19,9 +19,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
@@ -175,12 +173,5 @@ public class SecurityConfiguration {
     @Bean
     JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
         return new NimbusJwtEncoder(jwkSource);
-    }
-
-    @Bean
-    JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) throws Exception {
-        RSAKey key = (RSAKey) jwkSource.get(new com.nimbusds.jose.jwk.JWKSelector(
-                new com.nimbusds.jose.jwk.JWKMatcher.Builder().build()), null).getFirst();
-        return NimbusJwtDecoder.withPublicKey(key.toRSAPublicKey()).build();
     }
 }

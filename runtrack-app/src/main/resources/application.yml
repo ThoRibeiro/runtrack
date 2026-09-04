@@ -135,6 +135,18 @@ runtrack:
     poll-timeout: 1s
 
   auth:
+    # Qui signe les jetons d'accès. `local` : l'application, avec sa paire RSA ci-dessous.
+    # `keycloak` : le realm, dont on ne connaît que les clés publiques. Le défaut reste
+    # `local` — un poste sans fournisseur d'identité doit démarrer. Voir
+    # docs/decisions-keycloak.md.
+    provider: ${RUNTRACK_AUTH_PROVIDER:local}
+
+    keycloak:
+      # L'adresse du realm, telle qu'elle apparaît dans la revendication `iss` des jetons.
+      # Le JWKS s'en déduit, et n'est lu qu'à la première validation : l'API démarre donc
+      # même si Keycloak est en retard, ou absent.
+      issuer-uri: ${RUNTRACK_KEYCLOAK_ISSUER_URI:}
+
     jwt:
       # Chemins, jamais de clé en dur. Sans eux, une paire éphémère est tirée au démarrage
       # et les jetons ne survivent pas à un redémarrage : une configuration incomplète se
