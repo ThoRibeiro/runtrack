@@ -91,6 +91,22 @@ Keycloak sait en fabriquer.
 Tant que le front n'est pas basculé, `AuthController` et les jetons maison restent en place.
 Supprimer d'abord, c'est se priver de tout chemin de repli.
 
+### 9. Une adresse déjà prise arrête l'accueil du compte
+
+Rattacher une identité fédérée à un profil existant sur la seule foi de l'adresse est le
+scénario classique de prise de contrôle : il suffit qu'un fournisseur laisse déclarer une
+adresse non vérifiée. `provisionFederated` lève donc un conflit plutôt que de fusionner. Le
+jour où une fusion sera voulue, elle demandera une preuve — un lien envoyé à l'adresse, pas
+une supposition.
+
+### 10. L'existence se teste sur le cache, pas en base
+
+L'accueil d'un compte est appelé à **chaque** requête authentifiée, ingestion de points
+comprise — une fois par seconde et par coureur. Il interroge donc `UserApi.summary`, que le
+décorateur de `user` sert depuis Dragonfly, et non `exists`, qui partirait en base à chaque
+appel. Conséquence : `UserCacheInvalidation` écoute désormais `UserRegistered`, sinon un
+« profil absent » mis en cache juste avant sa création survivrait jusqu'à la fin de son délai.
+
 ## Découpage
 
 Chaque lot se termine sur un `mvn -o verify` vert, seuil de couverture compris, et une
@@ -98,8 +114,8 @@ branche poussée.
 
 | Lot | Contenu | Fini quand |
 | --- | --- | --- |
-| **1** | Le realm, la stack locale, la bascule du décodeur | Un jeton Keycloak est accepté par l'API, `provider=local` reste le défaut et ne change rien |
-| **2** | Le pont identité : `sub` = `UserId`, provisioning paresseux, `UserRegistered` | Une première requête d'un compte Keycloak inconnu crée son profil |
+| **1** ✅ | Le realm, la stack locale, la bascule du décodeur | Un jeton Keycloak est accepté par l'API, `provider=local` reste le défaut et ne change rien |
+| **2** ✅ | Le pont identité : `sub` = `UserId`, provisioning paresseux, `UserRegistered` | Une première requête d'un compte Keycloak inconnu crée son profil |
 | **3** | Les tests : décodeur de test, `CourseFixtures` qui forge son jeton | Les 171 ITs passent sans `/auth/v1/signup`, build toujours à deux minutes |
 | **4** | Le front : `expo-auth-session` + PKCE, écran « choisis ton pseudo », réglages de rotation du realm | Connexion, refresh et déconnexion fonctionnent sur web, iOS et Android |
 | **5** | La suppression : `AuthController`, `Credentials`, les deux familles de jetons, les mails, la table `V201` | Plus une ligne de mot de passe dans le dépôt |
