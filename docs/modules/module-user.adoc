@@ -14,7 +14,7 @@ _Others_
 |* `c.r.p.cache.CacheGateway` (in platform)
 * `c.r.p.cache.CacheProperties` (in platform)
 |Events listened to
-|* `c.r.u.event.UserDeleted` 
-* `c.r.u.event.UserRegistered` 
+|* `c.r.u.event.UserRegistered` 
 * `c.r.u.event.UserProfileUpdated` 
+* `c.r.u.event.UserDeleted` 
 |===

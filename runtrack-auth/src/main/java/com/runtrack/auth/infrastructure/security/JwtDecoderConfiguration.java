@@ -5,6 +5,8 @@ import com.nimbusds.jose.jwk.JWKSelector;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -35,11 +37,17 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 @EnableConfigurationProperties(KeycloakProperties.class)
 class JwtDecoderConfiguration {
 
+    private static final Logger LOG = LoggerFactory.getLogger(JwtDecoderConfiguration.class);
+
     /** Les jetons émis par l'application elle-même, vérifiés avec sa propre clé publique. */
     @Bean
     @ConditionalOnProperty(name = "runtrack.auth.provider", havingValue = "local",
             matchIfMissing = true)
     JwtDecoder localJwtDecoder(JWKSource<SecurityContext> jwkSource) throws Exception {
+        // Dit au démarrage qui signe : sans cette ligne, une bascule qui n'a pas pris
+        // se manifeste bien plus loin, par un « Invalid signature » sur un jeton
+        // parfaitement valide — celui du realm, vérifié avec la clé de l'application.
+        LOG.info("Jetons d'accès : signés par l'application elle-même (provider=local)");
         RSAKey key = (RSAKey) jwkSource
                 .get(new JWKSelector(new JWKMatcher.Builder().build()), null)
                 .getFirst();
@@ -65,6 +73,7 @@ class JwtDecoderConfiguration {
             throw new IllegalStateException(
                     "runtrack.auth.provider=keycloak sans runtrack.auth.keycloak.issuer-uri");
         }
+        LOG.info("Jetons d'accès : validés contre le realm {}", properties.issuerUri());
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(properties.jwkSetUri()).build();
         decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(properties.issuerUri()));
         return decoder;
