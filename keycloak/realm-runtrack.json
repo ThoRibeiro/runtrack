@@ -1,0 +1,46 @@
+{
+  "realm": "runtrack",
+  "displayName": "RunTrack",
+  "enabled": true,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "verifyEmail": true,
+  "rememberMe": true,
+  "bruteForceProtected": true,
+  "failureFactor": 10,
+  "waitIncrementSeconds": 60,
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 2592000,
+  "ssoSessionMaxLifespan": 7776000,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 1,
+  "clients": [
+    {
+      "clientId": "runtrack-app",
+      "name": "RunTrack — application web et mobile",
+      "description": "Client public : une application installée ne peut garder aucun secret. La preuve tient dans PKCE, pas dans un mot de passe de client. exp://* sert au serveur de développement Expo, dont l'adresse change avec le réseau ; il n'a rien à faire dans un realm de production.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "implicitFlowEnabled": false,
+      "fullScopeAllowed": true,
+      "redirectUris": [
+        "http://localhost:8081/*",
+        "runtrack://auth/*",
+        "exp://*"
+      ],
+      "webOrigins": [
+        "http://localhost:8081"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8081/*##runtrack://auth/*"
+      }
+    }
+  ]
+}

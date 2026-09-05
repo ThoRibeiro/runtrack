@@ -11,8 +11,8 @@
 * `c.r.c.CourseApi` (in course)
 |Events listened to
 |* `c.r.e.event.CommentReplied` 
-* `c.r.e.event.ActivityCommented` 
 * `c.r.e.event.ActivityUnliked` 
 * `c.r.e.event.ActivityLiked` 
+* `c.r.e.event.ActivityCommented` 
 * `c.r.e.event.CommentDeleted` 
 |===

@@ -7,6 +7,7 @@ import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.shared.error.ConflictException;
 import com.runtrack.shared.error.NotFoundException;
 import com.runtrack.shared.id.UserId;
+import com.runtrack.user.FederatedProfile;
 import com.runtrack.user.event.UserDeleted;
 import com.runtrack.user.event.UserProfileUpdated;
 import com.runtrack.user.event.UserRegistered;
@@ -60,6 +61,96 @@ class UserAccountsTest {
         published.clear();
         return id;
     }
+
+    // --- Identités fédérées (§ docs/decisions-keycloak.md) --------------------------------
+
+    private static final UserId FEDERATED =
+            UserId.of("0198c4d2-7f31-7a42-9c55-1b2c3d4e5f60");
+
+    private static FederatedProfile marieFromTheRealm() {
+        return new FederatedProfile("marie@example.com", "Marie", true);
+    }
+
+    /** L'identifiant vient du jeton : c'est tout l'intérêt de ne pas tenir de correspondance. */
+    @Test
+    void opensAProfileUnderTheIdentifierTheProviderGave() {
+        assertThat(accounts.provisionFederated(FEDERATED, marieFromTheRealm())).isTrue();
+
+        assertThat(users.findById(FEDERATED)).isPresent();
+        assertThat(published).singleElement().isInstanceOf(UserRegistered.class);
+    }
+
+    /** Appelé à chaque connexion : le second passage ne doit rien faire, ni rien publier. */
+    @Test
+    void openingTheSameProfileTwiceChangesNothing() {
+        accounts.provisionFederated(FEDERATED, marieFromTheRealm());
+        published.clear();
+
+        assertThat(accounts.provisionFederated(FEDERATED, marieFromTheRealm())).isFalse();
+        assertThat(published).isEmpty();
+    }
+
+    /** Le pseudo est provisoire, dérivé de l'identifiant, et respecte les règles du domaine. */
+    @Test
+    void derivesAProvisionalHandleFromTheIdentifier() {
+        accounts.provisionFederated(FEDERATED, marieFromTheRealm());
+
+        Handle handle = users.findById(FEDERATED).orElseThrow().handle();
+        assertThat(handle.value()).isEqualTo("runner-0198c4d2");
+    }
+
+    /** Un pseudo dérivé déjà pris s'allonge : deux tirages au sort pourraient se répéter. */
+    @Test
+    void lengthensTheProvisionalHandleRatherThanFailing() {
+        accounts.register(new Handle("runner-0198c4d2"), new Email("autre@example.com"), "Autre");
+
+        accounts.provisionFederated(FEDERATED, marieFromTheRealm());
+
+        assertThat(users.findById(FEDERATED).orElseThrow().handle().value())
+                .isEqualTo("runner-0198c4d27f31");
+    }
+
+    /** Le fournisseur a vérifié l'adresse : la personne n'a pas à le prouver une seconde fois. */
+    @Test
+    void aVerifiedEmailOpensAnActiveAccount() {
+        accounts.provisionFederated(FEDERATED, marieFromTheRealm());
+
+        assertThat(users.findById(FEDERATED).orElseThrow().status())
+                .isEqualTo(AccountStatus.ACTIVE);
+    }
+
+    @Test
+    void anUnverifiedEmailStillWaitsForItsConfirmation() {
+        accounts.provisionFederated(FEDERATED,
+                new FederatedProfile("marie@example.com", "Marie", false));
+
+        assertThat(users.findById(FEDERATED).orElseThrow().status())
+                .isEqualTo(AccountStatus.PENDING_VERIFICATION);
+    }
+
+    /**
+     * Le scénario de prise de contrôle : rattacher une identité fédérée à un compte existant
+     * sur la seule foi de l'adresse suffirait à s'emparer de ce compte.
+     */
+    @Test
+    void refusesAnAddressThatAlreadyBelongsToSomeoneElse() {
+        registerMarie();
+
+        assertThatExceptionOfType(ConflictException.class)
+                .isThrownBy(() -> accounts.provisionFederated(FEDERATED, marieFromTheRealm()))
+                .withMessageContaining("autre compte");
+    }
+
+    /** Sans nom transmis, l'adresse en fait un : un profil sans nom d'affichage n'existe pas. */
+    @Test
+    void fallsBackOnTheAddressWhenTheProviderGivesNoName() {
+        accounts.provisionFederated(FEDERATED,
+                new FederatedProfile("marie@example.com", null, true));
+
+        assertThat(users.findById(FEDERATED).orElseThrow().displayName()).isEqualTo("marie");
+    }
+
+    // --- Inscription classique ------------------------------------------------------------
 
     @Test
     void registersAProfileAndAnnouncesIt() {

@@ -2,6 +2,7 @@ package com.runtrack.user.usecases.service;
 
 import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.shared.id.UserId;
+import com.runtrack.user.FederatedProfile;
 import com.runtrack.user.NewUser;
 import com.runtrack.user.RunnerMass;
 import com.runtrack.user.UserApi;
@@ -34,6 +35,11 @@ class UserApiAdapter implements UserApi {
     public UserId register(NewUser newUser) {
         return accounts.register(
                 new Handle(newUser.handle()), new Email(newUser.email()), newUser.displayName());
+    }
+
+    @Override
+    public boolean ensureProfile(UserId id, FederatedProfile profile) {
+        return accounts.provisionFederated(id, profile);
     }
 
     @Override

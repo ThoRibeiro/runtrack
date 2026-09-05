@@ -8,6 +8,7 @@ import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.shared.id.ActivityId;
 import com.runtrack.shared.id.UserId;
 import com.runtrack.social.SocialApi;
+import com.runtrack.user.FederatedProfile;
 import com.runtrack.user.NewUser;
 import com.runtrack.user.RunnerMass;
 import com.runtrack.user.UserApi;
@@ -113,6 +114,11 @@ class FeedReaderTest {
     private static final class Users implements UserApi {
 
         private final List<Collection<UserId>> calls = new ArrayList<>();
+
+        @Override
+        public boolean ensureProfile(UserId id, FederatedProfile profile) {
+            throw new UnsupportedOperationException("Hors du périmètre de ce double");
+        }
 
         @Override
         public UserId register(NewUser newUser) {

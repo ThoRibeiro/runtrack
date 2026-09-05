@@ -14,6 +14,7 @@ import com.runtrack.auth.usecases.model.token.SingleUseToken;
 import com.runtrack.auth.usecases.model.token.TokenPurpose;
 import com.runtrack.shared.access.AudienceScope;
 import com.runtrack.shared.id.UserId;
+import com.runtrack.user.FederatedProfile;
 import com.runtrack.user.NewUser;
 import com.runtrack.user.RunnerMass;
 import com.runtrack.user.UserApi;
@@ -46,6 +47,12 @@ public final class AuthDoubles {
         private final Map<String, UserId> byEmail = new LinkedHashMap<>();
         public final List<UserId> confirmed = new ArrayList<>();
 
+        /** Le profil que l'on veut voir répondu par {@code summary}, s'il y en a un. */
+        public UserSummary known;
+
+        /** Ce que le dernier accueil d'identité fédérée a enregistré, s'il a eu lieu. */
+        public FederatedProfile provisioned;
+
         @Override
         public UserId register(NewUser newUser) {
             UserId id = new UserId(UUID.randomUUID());
@@ -69,8 +76,15 @@ public final class AuthDoubles {
         }
 
         @Override
+        public boolean ensureProfile(UserId id, FederatedProfile profile) {
+            provisioned = profile;
+            byEmail.put(profile.email(), id);
+            return true;
+        }
+
+        @Override
         public Optional<UserSummary> summary(UserId id) {
-            return Optional.empty();
+            return Optional.ofNullable(known);
         }
 
         @Override

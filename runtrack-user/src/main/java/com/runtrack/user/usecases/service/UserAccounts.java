@@ -3,6 +3,7 @@ package com.runtrack.user.usecases.service;
 import com.runtrack.shared.error.ConflictException;
 import com.runtrack.shared.error.NotFoundException;
 import com.runtrack.shared.id.UserId;
+import com.runtrack.user.FederatedProfile;
 import com.runtrack.user.event.UserDeleted;
 import com.runtrack.user.event.UserProfileUpdated;
 import com.runtrack.user.event.UserRegistered;
@@ -37,6 +38,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserAccounts {
 
     private static final int ANONYMOUS_SUFFIX_BYTES = 4;
+
+    /** Le pseudo d'attente d'un compte fédéré, avant que la personne n'en choisisse un. */
+    private static final String PROVISIONAL_HANDLE_PREFIX = "runner-";
+
+    /** Longueurs successives d'identifiant essayées : 8 suffisent, 23 tiennent dans les 30. */
+    private static final int[] PROVISIONAL_HANDLE_LENGTHS = {8, 12, 16, 23};
     private static final int MAX_SEARCH_RESULTS = 20;
 
     /**
@@ -82,6 +89,65 @@ public class UserAccounts {
         User user = users.save(User.register(UserId.generate(clock, random), handle, email, displayName, now));
         events.publishEvent(new UserRegistered(user.id(), user.handle().value(), now));
         return user.id();
+    }
+
+    /**
+     * Ouvre le profil d'une identité fédérée, si elle n'en a pas déjà un.
+     *
+     * <p><b>L'identifiant n'est pas tiré ici.</b> Il vient du {@code sub} du jeton : garder une
+     * table de correspondance entre l'identité du fournisseur et la nôtre coûterait une lecture
+     * par requête, un cache, et l'invalidation de ce cache — pour ne rien apporter que le
+     * {@code sub} ne dise déjà.
+     *
+     * <p>Le pseudo est <b>provisoire</b> et dérivé de l'identifiant. Le demander au fournisseur
+     * reviendrait à lui confier une règle du domaine ; le demander à la personne au milieu d'une
+     * redirection OIDC n'est pas possible. Elle le choisit ensuite, par
+     * {@code PUT /user/v1/me/handle}.
+     *
+     * <p>Une adresse déjà portée par un autre profil <b>arrête tout</b>. Rattacher
+     * silencieusement une identité fédérée à un compte existant sur la seule foi de l'adresse
+     * est le scénario classique de prise de contrôle : il suffit qu'un fournisseur laisse
+     * déclarer une adresse non vérifiée.
+     */
+    @Transactional
+    public boolean provisionFederated(UserId id, FederatedProfile profile) {
+        if (users.findById(id).isPresent()) {
+            return false;
+        }
+        Email email = new Email(profile.email());
+        if (users.existsByEmail(email)) {
+            throw new ConflictException("EMAIL_TAKEN",
+                    "Cette adresse e-mail appartient déjà à un autre compte");
+        }
+
+        var now = clock.instant();
+        User user = User.register(id, provisionalHandle(id), email, profile.displayName(), now);
+        if (profile.emailVerified()) {
+            // Le fournisseur l'a vérifiée : refaire le tour par un courriel maison demanderait
+            // à la personne de prouver deux fois la même chose.
+            user.verifyEmail(now);
+        }
+        users.save(user);
+        events.publishEvent(new UserRegistered(user.id(), user.handle().value(), now));
+        return true;
+    }
+
+    /**
+     * Un pseudo libre, dérivé de l'identifiant.
+     *
+     * <p>On rallonge tant qu'il est pris plutôt que de tirer au hasard : deux tirages peuvent
+     * entrer en collision indéfiniment, l'identifiant complet est unique par construction.
+     */
+    private Handle provisionalHandle(UserId id) {
+        String hex = id.value().toString().replace("-", "");
+        for (int length : PROVISIONAL_HANDLE_LENGTHS) {
+            Handle candidate = new Handle(PROVISIONAL_HANDLE_PREFIX + hex.substring(0, length));
+            if (!users.existsByHandle(candidate)) {
+                return candidate;
+            }
+        }
+        throw new ConflictException("HANDLE_TAKEN",
+                "Impossible de dériver un identifiant public libre pour ce compte");
     }
 
     @Transactional
